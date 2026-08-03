@@ -1,0 +1,718 @@
+import { useState, useEffect, useCallback } from 'react'
+import { Package, Plus, Edit2, Trash2, LogOut, Search, AlertTriangle, ShoppingCart, BarChart3, RotateCcw } from 'lucide-react'
+import { getProductosActivos, deactivateProducto, reactivateProducto, getProductosInactivos } from '../services/api'
+import ProductForm from './ProductForm'
+import SalesForm from './SalesForm'
+import SalesHistory from './SalesHistory'
+import Tutorial from './Tutorial'
+import Swal from 'sweetalert2'
+import MetricsView from './MetricsView'
+import ClientesView from './ClientesView'
+
+function Dashboard({ onLogout }) {
+  const [productos, setProductos] = useState([])
+  const [search, setSearch] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [editId, setEditId] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [currentView, setCurrentView] = useState('dashboard')
+  const [showInactive, setShowInactive] = useState(false)
+  const [productosInactivos, setProductosInactivos] = useState([])
+  const [showTutorial, setShowTutorial] = useState(false)
+  const [addedToCart, setAddedToCart] = useState(null)
+  const [cart, setCart] = useState([])
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [selectedImage, setSelectedImage] = useState(null) // ✅ NUEVO: Para el lightbox
+
+  const fetchProductos = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data } = await getProductosActivos()
+      if (data) setProductos(data)
+    } catch (err) {
+      console.error('Error al cargar productos:', err)
+    }
+    setLoading(false)
+  }, [])
+
+  const fetchProductosInactivos = useCallback(async () => {
+    try {
+      const { data } = await getProductosInactivos()
+      if (data) setProductosInactivos(data)
+    } catch (err) {
+      console.error('Error al cargar inactivos:', err)
+    }
+  }, [])
+
+  useEffect(() => { 
+    fetchProductos()
+    const tutorialSeen = localStorage.getItem('tutorial_completed')
+    if (!tutorialSeen) {
+      setTimeout(() => setShowTutorial(true), 500)
+    }
+  }, [fetchProductos])
+
+  const handleDelete = async (id) => {
+  const result = await Swal.fire({
+    title: '¿Desactivar producto?',
+    html: `
+      <p style="margin-bottom: 10px;">Este producto dejará de aparecer en el inventario.</p>
+      <p style="color: #6b7280; font-size: 0.9rem;">
+        No se borrará de la base de datos para no romper el historial de ventas.
+        Podés reactivarlo después desde "Ver productos desactivados".
+      </p>
+    `,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Sí, desactivar',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#dc2626',
+    cancelButtonColor: '#6b7280'
+  })
+
+  if (result.isConfirmed) {
+    try {
+      await deactivateProducto(id)
+      fetchProductos()
+      Swal.fire({
+        title: 'Producto desactivado',
+        text: 'Podés reactivarlo cuando quieras',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      })
+    } catch (err) {
+      Swal.fire({
+        title: 'Error',
+        text: err.response?.data?.message || err.message,
+        icon: 'error'
+      })
+    }
+  }
+}
+
+   const handleReactivar = async (id) => {
+    try {
+      await reactivateProducto(id)
+      fetchProductosInactivos()
+      fetchProductos()
+      Swal.fire({
+        title: 'Producto reactivado',
+        text: 'El producto volvió al inventario activo',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      })
+    } catch (err) {
+      Swal.fire({
+        title: 'Error al reactivar',
+        text: err.response?.data?.message || err.message,
+        icon: 'error',
+        confirmButtonColor: '#dc2626'
+      })
+    }
+  }
+
+  const addToCartFromDashboard = (product) => {
+    setCart(prevCart => {
+      const existingItem = prevCart.find(item => item.id === product.id)
+      let newCart
+      
+      if (existingItem) {
+        if (existingItem.quantity + 1 > product.stock) {
+          Swal.fire({
+            title: 'Stock insuficiente',
+            text: `Solo quedan ${product.stock} unidades de ${product.nombre}.`,
+            icon: 'warning',
+            confirmButtonColor: '#dc2626',
+            timer: 2000,
+            showConfirmButton: false
+          })
+          return prevCart
+        }
+        newCart = prevCart.map(item => 
+          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        )
+      } else {
+        newCart = [...prevCart, { ...product, quantity: 1 }]
+      }
+      
+      Swal.fire({
+        title: 'Agregado al carrito!',
+        text: `${product.nombre} (${newCart.reduce((sum, item) => item.id === product.id ? item.quantity : sum, 0)} en total)`,
+        icon: 'success',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true
+      })
+      
+      return newCart
+    })
+  }
+
+  const filteredProductos = productos.filter(p =>
+    p.nombre?.toLowerCase().includes(search.toLowerCase()) ||
+    p.categoria?.toLowerCase().includes(search.toLowerCase()) ||
+    p.color?.toLowerCase().includes(search.toLowerCase())
+  )
+
+  const stockBajo = productos.filter(p => p.stock <= 5).length
+  const totalProductos = productos.length
+  const totalStock = productos.reduce((acc, p) => acc + (p.stock || 0), 0)
+
+  const productosEnRiesgo = productos
+    .filter(p => p.stock <= 5)
+    .sort((a, b) => a.stock - b.stock)
+
+  const scrollToProductos = () => {
+    window.scrollTo({ top: 450, behavior: 'smooth' })
+  }
+
+  return (
+    <div className="min-h-screen pb-32 md:pb-8">
+      {/* HEADER COMPACTO */}
+      <header className="bg-white shadow-sm border-b sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+          <h1 className="text-lg md:text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <Package className="w-6 h-6 md:w-8 md:h-8 text-blue-600" /> Stock Mercadería
+          </h1>
+          <button onClick={onLogout} className="btn btn-secondary touch-target">
+            <LogOut className="w-5 h-5" /> <span className="hidden sm:inline">Salir</span>
+          </button>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        <div className="top-tabs">
+          <button onClick={() => setCurrentView('dashboard')} className={`tab-btn ${currentView === 'dashboard' ? 'active' : ''}`}>
+            <Package className="w-6 h-6" /> Inventario
+          </button>
+          <button onClick={() => setCurrentView('sales')} className={`tab-btn ${currentView === 'sales' ? 'active' : ''}`}>
+            <div className="flex items-center gap-1">
+              <ShoppingCart className="w-6 h-6" />
+              {cart.length > 0 && (
+                <span className="bg-green-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                  {cart.length}
+                </span>
+              )}
+            </div>
+            <span className="ml-1">Registrar Venta</span>
+          </button>
+          <button onClick={() => setCurrentView('history')} className={`tab-btn ${currentView === 'history' ? 'active' : ''}`}>
+            <BarChart3 className="w-6 h-6" /> Historial
+          </button>
+          <button onClick={() => setCurrentView('clientes')} className={`tab-btn ${currentView === 'clientes' ? 'active' : ''}`}>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            Clientes
+          </button>
+          <button onClick={() => setCurrentView('metrics')} className={`tab-btn ${currentView === 'metrics' ? 'active' : ''}`}>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Métricas
+          </button>
+        </div>
+
+        {currentView === 'dashboard' ? (
+          <>
+            {/* ==========================================
+                STATS: Cards compactas (mobile) / Grid (desktop)
+                ========================================== */}
+            <div className="mb-6">
+              {/* MOBILE - Carrusel MANUAL (sin auto-scroll) */}
+              <div 
+                className="sm:hidden overflow-x-auto -mx-4 px-4"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                <div className="flex gap-3 pb-2" style={{ width: 'max-content' }}>
+                  
+                  {/* Card 1: Total Items -> Va a Métricas */}
+                  <button
+                    onClick={() => setCurrentView('metrics')}
+                    className="shrink-0 w-[70vw] h-[140px] p-3 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-2xl border border-indigo-200 flex flex-col justify-between hover:shadow-md transition-all duration-200 active:scale-95 cursor-pointer"
+                  >
+                    <div>
+                      <p className="text-xs text-indigo-700 font-medium">Total Items</p>
+                      <p className="text-3xl font-bold text-indigo-900 mt-1">{totalProductos}</p>
+                    </div>
+                    <p className="text-[10px] text-indigo-600">productos activos</p>
+                  </button>
+
+                  {/* Card 2: Stock Total -> Va a Inventario */}
+                  <button
+                    onClick={() => {
+                      setCurrentView('dashboard');
+                      setTimeout(() => scrollToProductos(), 100);
+                    }}
+                    className="shrink-0 w-[70vw] h-[140px] p-3 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl border border-blue-200 flex flex-col justify-between hover:shadow-md transition-all duration-200 active:scale-95 cursor-pointer"
+                  >
+                    <div>
+                      <p className="text-xs text-blue-700 font-medium">Stock Total</p>
+                      <p className="text-3xl font-bold text-blue-600 mt-1">{totalStock}</p>
+                    </div>
+                    <p className="text-[10px] text-blue-600">unidades en inventario</p>
+                  </button>
+
+                  {/* Card 3: Alertas de Stock -> Va a Inventario */}
+                  <button
+                    onClick={() => {
+                      setCurrentView('dashboard');
+                      if (stockBajo > 0) setTimeout(() => scrollToProductos(), 100);
+                    }}
+                    className={`shrink-0 w-[70vw] h-[140px] p-3 rounded-2xl border flex flex-col justify-between hover:shadow-md transition-all duration-200 active:scale-95 cursor-pointer ${
+                      stockBajo > 0 
+                        ? 'bg-gradient-to-br from-red-50 to-red-100 border-red-200' 
+                        : 'bg-gradient-to-br from-green-50 to-green-100 border-green-200'
+                    }`}
+                  >
+                    <p className={`text-xs font-bold flex items-center gap-1 ${
+                      stockBajo > 0 ? 'text-red-700' : 'text-green-700'
+                    }`}>
+                      <AlertTriangle className="w-3 h-3" /> Alertas de Stock
+                      {stockBajo > 0 && <span className="ml-1">({stockBajo})</span>}
+                    </p>
+                    
+                    {stockBajo > 0 ? (
+                      <div className="mt-2 flex-1 overflow-y-auto space-y-1 pr-1">
+                        {productosEnRiesgo.slice(0, 5).map(p => (
+                          <div key={p.id} className="flex justify-between items-center text-[10px] leading-tight">
+                            <span className="truncate flex-1 text-red-800 font-medium">{p.nombre}</span>
+                            <span className="font-bold text-red-600 ml-1 text-[9px] whitespace-nowrap">
+                              {p.stock}{p.stock === 1 ? 'ud' : 'uds'}
+                            </span>
+                          </div>
+                        ))}
+                        {productosEnRiesgo.length > 5 && (
+                          <p className="text-red-600 text-[9px] font-semibold text-center mt-1">
+                            +{productosEnRiesgo.length - 5} más...
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center">
+                        <p className="text-xs text-green-700 font-medium">Todo en orden</p>
+                      </div>
+                    )}
+                  </button>
+
+                  {/* DUPLICADO PARA SCROLL INFINITO */}
+                  <button
+                    onClick={() => setCurrentView('metrics')}
+                    className="shrink-0 w-[70vw] h-[140px] p-3 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-2xl border border-indigo-200 flex flex-col justify-between hover:shadow-md transition-all duration-200 active:scale-95 cursor-pointer"
+                  >
+                    <div>
+                      <p className="text-xs text-indigo-700 font-medium">Total Items</p>
+                      <p className="text-3xl font-bold text-indigo-900 mt-1">{totalProductos}</p>
+                    </div>
+                    <p className="text-[10px] text-indigo-600">productos activos</p>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setCurrentView('dashboard');
+                      setTimeout(() => scrollToProductos(), 100);
+                    }}
+                    className="shrink-0 w-[70vw] h-[140px] p-3 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl border border-blue-200 flex flex-col justify-between hover:shadow-md transition-all duration-200 active:scale-95 cursor-pointer"
+                  >
+                    <div>
+                      <p className="text-xs text-blue-700 font-medium">Stock Total</p>
+                      <p className="text-3xl font-bold text-blue-600 mt-1">{totalStock}</p>
+                    </div>
+                    <p className="text-[10px] text-blue-600">unidades en inventario</p>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setCurrentView('dashboard');
+                      if (stockBajo > 0) setTimeout(() => scrollToProductos(), 100);
+                    }}
+                    className={`shrink-0 w-[70vw] h-[140px] p-3 rounded-2xl border flex flex-col justify-between hover:shadow-md transition-all duration-200 active:scale-95 cursor-pointer ${
+                      stockBajo > 0 
+                        ? 'bg-gradient-to-br from-red-50 to-red-100 border-red-200' 
+                        : 'bg-gradient-to-br from-green-50 to-green-100 border-green-200'
+                    }`}
+                  >
+                    <p className={`text-xs font-bold flex items-center gap-1 ${
+                      stockBajo > 0 ? 'text-red-700' : 'text-green-700'
+                    }`}>
+                      <AlertTriangle className="w-3 h-3" /> Alertas de Stock
+                      {stockBajo > 0 && <span className="ml-1">({stockBajo})</span>}
+                    </p>
+                    
+                    {stockBajo > 0 ? (
+                      <div className="mt-2 flex-1 overflow-y-auto space-y-1 pr-1">
+                        {productosEnRiesgo.slice(0, 5).map(p => (
+                          <div key={p.id} className="flex justify-between items-center text-[10px] leading-tight">
+                            <span className="truncate flex-1 text-red-800 font-medium">{p.nombre}</span>
+                            <span className="font-bold text-red-600 ml-1 text-[9px] whitespace-nowrap">
+                              {p.stock}{p.stock === 1 ? 'ud' : 'uds'}
+                            </span>
+                          </div>
+                        ))}
+                        {productosEnRiesgo.length > 5 && (
+                          <p className="text-red-600 text-[9px] font-semibold text-center mt-1">
+                            +{productosEnRiesgo.length - 5} más...
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center">
+                        <p className="text-xs text-green-700 font-medium">Todo en orden</p>
+                      </div>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* DESKTOP - Grid estático */}
+              <div className="hidden sm:grid sm:grid-cols-3 gap-4">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <p className="text-lg text-gray-600 font-medium">Total Productos</p>
+                  <p className="text-4xl font-bold text-gray-800 mt-2">{totalProductos}</p>
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <p className="text-lg text-gray-600 font-medium">Stock Total</p>
+                  <p className="text-4xl font-bold text-blue-600 mt-2">{totalStock}</p>
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <p className="text-lg text-gray-600 font-medium flex items-center gap-2">
+                    <AlertTriangle className="w-6 h-6 text-red-500" /> Alertas de Stock
+                  </p>
+                  
+                  {stockBajo === 0 ? (
+                    <p className="text-2xl font-bold text-green-600 mt-2">Todo en orden</p>
+                  ) : (
+                    <div className="mt-3 max-h-48 overflow-y-auto pr-2 space-y-2">
+                      {productosEnRiesgo.map(p => (
+                        <div 
+                          key={p.id} 
+                          className={`flex justify-between items-center p-2 rounded-lg ${
+                            p.stock === 0 
+                              ? 'bg-red-100 border border-red-300' 
+                              : 'bg-orange-50 border border-orange-200'
+                          }`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className={`font-semibold text-sm truncate ${
+                              p.stock === 0 ? 'text-red-800' : 'text-orange-800'
+                            }`}>
+                              {p.nombre}
+                            </p>
+                            <p className="text-xs text-gray-600">
+                              {p.categoria} • {p.talle || 'N/A'}
+                            </p>
+                          </div>
+                          <div className="text-right ml-2">
+                            <span className={`font-bold text-lg ${
+                              p.stock === 0 ? 'text-red-600' : 'text-orange-600'
+                            }`}>
+                              {p.stock}
+                            </span>
+                            <p className="text-xs text-gray-500">
+                              {p.stock === 0 ? 'Agotado' : 'unidades'}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* BARRA DE BÚSQUEDA Y BOTÓN AGREGAR */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <div className="relative flex-1 max-w-md w-full">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar por nombre, categoría o color..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <button
+                onClick={() => { setShowForm(true); setEditId(null); }}
+                className="btn btn-primary w-full sm:w-auto"
+              >
+                <Plus className="w-6 h-6" /> Agregar Producto
+              </button>
+            </div>
+
+            {/* VISTA MOBILE: Cards con IMAGEN */}
+            <div className="product-cards-mobile">
+              {loading ? <div className="loading-state">Cargando productos...</div> : 
+                filteredProductos.length === 0 ? (
+                  <div className="empty-state">{search ? 'No se encontraron productos.' : 'No hay productos. ¡Agrega el primero!'}</div>
+                ) : (
+                  filteredProductos.map((p) => (
+                    <div key={p.id} className="product-card">
+                      {/* ✅ IMAGEN CON LIGHTBOX */}
+                      {p.imagen_url ? (
+                        <div 
+                          onClick={() => setSelectedImage(p.imagen_url)}
+                          className="relative cursor-pointer active:scale-95 transition-transform duration-200"
+                          style={{ marginBottom: '12px', borderRadius: '12px', overflow: 'hidden', background: '#f3f4f6' }}
+                        >
+                          <img 
+                            src={p.imagen_url} 
+                            alt={p.nombre} 
+                            style={{ width: '100%', height: '180px', objectFit: 'cover', display: 'block' }} 
+                            onError={(e) => { e.target.style.display = 'none'; }} 
+                          />
+                          {/* Ícono de lupa sutil */}
+                          <div className="absolute top-2 right-2 bg-black bg-opacity-40 rounded-full p-1.5 opacity-0 hover:opacity-100 transition-opacity">
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                            </svg>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ marginBottom: '12px', borderRadius: '12px', overflow: 'hidden', background: '#f3f4f6', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>
+                          <Package className="w-12 h-12" />
+                        </div>
+                      )}
+                      <div className="product-card-header">
+                        <div>
+                          <h3 className="product-card-title">{p.nombre}</h3>
+                          <p className="product-card-meta">{p.categoria || 'Sin categoría'}</p>
+                        </div>
+                        <span className={`stock-badge ${p.stock <= 5 ? 'stock-low' : 'stock-ok'}`}>Stock: {p.stock}</span>
+                      </div>
+                      <div className="product-card-details">
+                        <div className="detail-item">Talle: <span>{p.talle || '-'}</span></div>
+                        <div className="detail-item">Color: <span>{p.color || '-'}</span></div>
+                      </div>
+                      <div className="product-card-footer">
+                        <div className="product-price">${Number(p.precio).toFixed(2)}</div>
+                        <div style={{ display: 'flex', gap: '8px', width: '100%', marginTop: '8px' }}>
+                          <button onClick={() => { addToCartFromDashboard(p); setAddedToCart(p.id); setTimeout(() => setAddedToCart(null), 2000); }} className="btn btn-success touch-target" style={{ flex: 1, position: 'relative', background: addedToCart === p.id ? '#16a34a' : '#22c55e' }} disabled={p.stock <= 0}>
+                            <ShoppingCart size={18} /> {addedToCart === p.id ? 'Agregado' : 'Vender'}
+                          </button>
+                          <button onClick={() => { setShowForm(true); setEditId(p.id); }} className="btn btn-secondary touch-target" style={{ flex: 1 }}>
+                            <Edit2 size={18} /> Editar
+                          </button>
+                          <button onClick={() => handleDelete(p.id)} className="btn btn-danger touch-target" style={{ flex: 1 }}>
+                            <Trash2 size={18} /> Desactivar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )
+              }
+            </div>
+
+            {/* VISTA DESKTOP: Tabla con IMAGEN */}
+            <div className="product-table-desktop bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+              {loading ? <div className="loading-state">Cargando productos...</div> : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-max">
+                    <thead className="bg-gray-100 border-b-2 border-gray-200">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-base font-bold text-gray-700 uppercase">Imagen</th>
+                        {['Nombre', 'Categoría', 'Talle', 'Color', 'Precio', 'Stock', 'Acciones'].map(h => (
+                          <th key={h} className="px-6 py-4 text-left text-base font-bold text-gray-700 uppercase">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {filteredProductos.map((p) => (
+                        <tr key={p.id} className="hover:bg-blue-50 transition">
+                          <td className="px-6 py-4">
+                            {p.imagen_url ? (
+                              <img 
+                                src={p.imagen_url} 
+                                alt={p.nombre} 
+                                style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '8px', cursor: 'pointer' }} 
+                                onClick={() => setSelectedImage(p.imagen_url)}
+                                onError={(e) => { e.target.style.display = 'none'; }} 
+                              />
+                            ) : (
+                              <div style={{ width: '50px', height: '50px', background: '#f3f4f6', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Package className="w-6 h-6 text-gray-400" />
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 font-bold text-gray-900 text-lg">{p.nombre}</td>
+                          <td className="px-6 py-4 text-gray-700 text-lg">{p.categoria || '-'}</td>
+                          <td className="px-6 py-4 text-gray-700 text-lg">{p.talle || '-'}</td>
+                          <td className="px-6 py-4 text-gray-700 text-lg">{p.color || '-'}</td>
+                          <td className="px-6 py-4 text-gray-900 font-bold text-lg">${Number(p.precio).toFixed(2)}</td>
+                          <td className="px-6 py-4">
+                            <span className={`stock-badge ${p.stock <= 5 ? 'stock-low' : 'stock-ok'}`}>{p.stock}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2 justify-end">
+                              <button onClick={() => { addToCartFromDashboard(p); setAddedToCart(p.id); setTimeout(() => setAddedToCart(null), 2000); }} className="btn btn-success touch-target" disabled={p.stock <= 0} title="Agregar al carrito">
+                                <ShoppingCart className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => { setShowForm(true); setEditId(p.id); }} className="btn btn-secondary touch-target" title="Editar producto">
+                                <Edit2 className="w-5 h-5" />
+                              </button>
+                              <button onClick={() => handleDelete(p.id)} className="btn btn-danger touch-target" title="Eliminar producto">
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredProductos.length === 0 && (
+                        <tr><td colSpan="8" className="px-6 py-12 text-center text-gray-500 text-xl">No se encontraron productos.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="text-center mt-8">
+              <button onClick={() => { setShowInactive(!showInactive); if (!showInactive) fetchProductosInactivos(); }} className="btn btn-secondary">
+                {showInactive ? 'Ocultar productos desactivados' : 'Ver productos desactivados'}
+              </button>
+            </div>
+
+            {showInactive && (
+              <div className="bg-gray-100 rounded-xl shadow-sm border border-gray-300 overflow-hidden mt-6">
+                <div className="p-4 bg-gray-200 border-b border-gray-300">
+                  <h3 className="text-lg font-bold text-gray-700 flex items-center gap-2"><RotateCcw className="w-5 h-5" /> Productos Desactivados</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-max">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-sm font-bold text-gray-600 uppercase">Nombre</th>
+                        <th className="px-6 py-3 text-left text-sm font-bold text-gray-600 uppercase">Categoría</th>
+                        <th className="px-6 py-3 text-right text-sm font-bold text-gray-600 uppercase">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-300">
+                      {productosInactivos.map((p) => (
+                        <tr key={p.id} className="bg-gray-50">
+                          <td className="px-6 py-3 text-gray-500 text-base">{p.nombre}</td>
+                          <td className="px-6 py-3 text-gray-500 text-base">{p.categoria || '-'}</td>
+                          <td className="px-6 py-3 text-right">
+                            <button onClick={() => handleReactivar(p.id)} className="btn btn-success touch-target" style={{ minWidth: 'auto', padding: '0 12px' }}>
+                              <RotateCcw className="w-4 h-4" /> Reactivar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        ) : currentView === 'sales' ? (
+          <SalesForm onSaleRecorded={fetchProductos} productos={productos} cart={cart} setCart={setCart} />
+        ) : currentView === 'history' ? (
+          <SalesHistory />
+        ) : currentView === 'clientes' ? (
+          <ClientesView />
+        ) : currentView === 'metrics' ? (
+          <MetricsView onNavigate={setCurrentView} />
+        ) : null}
+      </main>
+
+      <nav id="bottom-nav" className="bottom-nav">
+        <button onClick={() => { setCurrentView('dashboard'); setShowMoreMenu(false); }} className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`}>
+          <Package className="w-6 h-6" /> <span>Inventario</span>
+        </button>
+        <button onClick={() => { setCurrentView('sales'); setShowMoreMenu(false); }} className={`nav-item ${currentView === 'sales' ? 'active' : ''}`}>
+          <div className="flex items-center gap-1">
+            <ShoppingCart className="w-6 h-6" />
+            {cart.length > 0 && (
+              <span className="bg-green-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                {cart.length}
+              </span>
+            )}
+          </div>
+          <span>Ventas</span>
+        </button>
+        <button onClick={() => { setCurrentView('history'); setShowMoreMenu(false); }} className={`nav-item ${currentView === 'history' ? 'active' : ''}`}>
+          <BarChart3 className="w-6 h-6" /> <span>Historial</span>
+        </button>
+        
+        {/* Botón "Más" */}
+        <button onClick={() => setShowMoreMenu(!showMoreMenu)} className={`nav-item ${showMoreMenu ? 'active' : ''}`}>
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+          </svg>
+          <span>Más</span>
+        </button>
+
+        {/* Menú desplegable */}
+        {showMoreMenu && (
+          <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
+            <button 
+              onClick={() => { setCurrentView('clientes'); setShowMoreMenu(false); }}
+              className="w-full text-left px-5 py-4 text-gray-700 hover:bg-blue-50 flex items-center gap-3 border-b border-gray-100"
+            >
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <div>
+                <p className="font-semibold">Clientes</p>
+                <p className="text-xs text-gray-500">Deudas y pagos</p>
+              </div>
+            </button>
+            <button 
+              onClick={() => { setCurrentView('metrics'); setShowMoreMenu(false); }}
+              className="w-full text-left px-5 py-4 text-gray-700 hover:bg-blue-50 flex items-center gap-3"
+            >
+              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <div>
+                <p className="font-semibold">Métricas</p>
+                <p className="text-xs text-gray-500">Estadísticas y reportes</p>
+              </div>
+            </button>
+          </div>
+        )}
+      </nav>
+
+      {showForm && <ProductForm onClose={() => setShowForm(false)} editId={editId} onSave={fetchProductos} />}
+      {showTutorial && <Tutorial onComplete={() => setShowTutorial(false)} />}
+
+      {/* ️ LIGHTBOX DE IMAGEN - Solo mobile */}
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 z-[100] flex items-center justify-center p-4 sm:hidden"
+          onClick={() => setSelectedImage(null)}
+        >
+          {/* Botón cerrar */}
+          <button 
+            onClick={() => setSelectedImage(null)}
+            className="absolute top-4 right-4 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-full p-2 transition-all z-10"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
+          {/* Imagen centrada con efecto */}
+          <img 
+            src={selectedImage} 
+            alt="Producto" 
+            className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          {/* Instrucción sutil */}
+          <p className="absolute bottom-8 text-white text-opacity-60 text-sm">
+            Tocá fuera para cerrar
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default Dashboard
