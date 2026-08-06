@@ -35,10 +35,10 @@ const useDebounce = (value, delay) => {
 const Tooltip = ({ text, show, onClose }) => {
   if (!show) return null
   return (
-    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full mb-2 bg-gray-800 text-white text-xs px-3 py-2 rounded-lg shadow-lg z-50 whitespace-nowrap">
+    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 text-white text-[10px] px-2 py-1.5 rounded-lg shadow-lg z-50 max-w-[180px] text-center leading-tight">
       {text}
-      <button onClick={onClose} className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center text-gray-800 text-xs">×</button>
-      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800" />
+      <button onClick={onClose} className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-white rounded-full flex items-center justify-center text-gray-800 text-[10px] font-bold">×</button>
+      <div className="absolute -top-1 left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-800" />
     </div>
   )
 }

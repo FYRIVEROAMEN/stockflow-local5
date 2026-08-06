@@ -52,6 +52,16 @@ function Dashboard({ onLogout }) {
     }
   }, [fetchProductos])
 
+  const [scrolled, setScrolled] = useState(false)
+
+useEffect(() => {
+  const handleScroll = () => {
+    setScrolled(window.scrollY > 50)
+  }
+  window.addEventListener('scroll', handleScroll)
+  return () => window.removeEventListener('scroll', handleScroll)
+}, [])
+
   const handleDelete = async (id) => {
   const result = await Swal.fire({
     title: '¿Desactivar producto?',
@@ -172,17 +182,26 @@ function Dashboard({ onLogout }) {
 
   return (
     <div className="min-h-screen pb-32 md:pb-8">
-      {/* HEADER COMPACTO */}
-      <header className="bg-white shadow-sm border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-          <h1 className="text-lg md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Package className="w-6 h-6 md:w-8 md:h-8 text-blue-600" /> Stock Mercadería
-          </h1>
-          <button onClick={onLogout} className="btn btn-secondary touch-target">
-            <LogOut className="w-5 h-5" /> <span className="hidden sm:inline">Salir</span>
-          </button>
-        </div>
-      </header>
+      {/* HEADER COMPACTO CON STOCKFLOW - Reemplazá SOLO esto */}
+        <header className={`bg-white shadow-sm border-b sticky top-0 z-40 transition-all duration-200 ${
+          scrolled ? 'py-1.5' : 'py-3'
+        }`}>
+          <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
+            <h1 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2">
+              <div className={`bg-blue-600 rounded-lg flex items-center justify-center transition-all ${
+                scrolled ? 'w-7 h-7' : 'w-8 h-8'
+              }`}>
+                <Package className="w-4 h-4 md:w-5 md:h-5 text-white" />
+              </div>
+            <span className="text-lg md:text-xl font-bold">
+              Stock<span className="text-blue-600">Flow</span>
+            </span>
+            </h1>
+            <button onClick={onLogout} className="btn btn-secondary touch-target">
+              <LogOut className="w-5 h-5" /> <span className="hidden sm:inline">Salir</span>
+            </button>
+          </div>
+        </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         <div className="top-tabs">
@@ -236,10 +255,10 @@ function Dashboard({ onLogout }) {
                     className="shrink-0 w-[70vw] h-[140px] p-3 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-2xl border border-indigo-200 flex flex-col justify-between hover:shadow-md transition-all duration-200 active:scale-95 cursor-pointer"
                   >
                     <div>
-                      <p className="text-xs text-indigo-700 font-medium">Total Items</p>
+                      <p className="text-xs text-indigo-700 font-medium">Mis Productos</p>
                       <p className="text-3xl font-bold text-indigo-900 mt-1">{totalProductos}</p>
                     </div>
-                    <p className="text-[10px] text-indigo-600">productos activos</p>
+                    <p className="text-[12px] text-indigo-600">Productos activos</p>
                   </button>
 
                   {/* Card 2: Stock Total -> Va a Inventario */}
@@ -251,10 +270,10 @@ function Dashboard({ onLogout }) {
                     className="shrink-0 w-[70vw] h-[140px] p-3 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl border border-blue-200 flex flex-col justify-between hover:shadow-md transition-all duration-200 active:scale-95 cursor-pointer"
                   >
                     <div>
-                      <p className="text-xs text-blue-700 font-medium">Stock Total</p>
+                      <p className="text-xs text-blue-700 font-medium">Stock Disponible</p>
                       <p className="text-3xl font-bold text-blue-600 mt-1">{totalStock}</p>
                     </div>
-                    <p className="text-[10px] text-blue-600">unidades en inventario</p>
+                    <p className="text-[12px] text-blue-600">unidades en inventario</p>
                   </button>
 
                   
@@ -315,7 +334,7 @@ function Dashboard({ onLogout }) {
                     className="shrink-0 w-[70vw] h-[140px] p-3 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-2xl border border-indigo-200 flex flex-col justify-between hover:shadow-md transition-all duration-200 active:scale-95 cursor-pointer"
                   >
                     <div>
-                      <p className="text-xs text-indigo-700 font-medium">Total Items</p>
+                      <p className="text-xs text-indigo-700 font-medium">Mis Productos</p>
                       <p className="text-3xl font-bold text-indigo-900 mt-1">{totalProductos}</p>
                     </div>
                     <p className="text-[10px] text-indigo-600">productos activos</p>
@@ -329,7 +348,7 @@ function Dashboard({ onLogout }) {
                     className="shrink-0 w-[70vw] h-[140px] p-3 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl border border-blue-200 flex flex-col justify-between hover:shadow-md transition-all duration-200 active:scale-95 cursor-pointer"
                   >
                     <div>
-                      <p className="text-xs text-blue-700 font-medium">Stock Total</p>
+                      <p className="text-xs text-blue-700 font-medium">Stock Disponible</p>
                       <p className="text-3xl font-bold text-blue-600 mt-1">{totalStock}</p>
                     </div>
                     <p className="text-[10px] text-blue-600">unidades en inventario</p>
@@ -381,11 +400,11 @@ function Dashboard({ onLogout }) {
               {/* DESKTOP - Grid estático */}
               <div className="hidden sm:grid sm:grid-cols-3 gap-4">
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                  <p className="text-lg text-gray-600 font-medium">Total Productos</p>
+                  <p className="text-lg text-gray-600 font-medium">Mis Productos</p>
                   <p className="text-4xl font-bold text-gray-800 mt-2">{totalProductos}</p>
                 </div>
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                  <p className="text-lg text-gray-600 font-medium">Stock Total</p>
+                  <p className="text-lg text-gray-600 font-medium">Stock Disponible</p>
                   <p className="text-4xl font-bold text-blue-600 mt-2">{totalStock}</p>
                 </div>
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 overflow-hidden">
