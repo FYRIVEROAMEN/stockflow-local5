@@ -22,7 +22,7 @@ function Login({ onLogin }) {
         <div className="text-center mb-6">
           {/* 👇 Acá cambiamos el ícono por la imagen */}
           <img 
-            src="/StockFlow.png" 
+            src="/istockphoto-1318457488-612x612.jpg" 
             alt="Logo Stock " 
             className="w-24 h-24 mx-auto mb-3 object-contain"
           />

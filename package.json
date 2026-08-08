@@ -16,6 +16,7 @@
     "@tailwindcss/postcss": "^4.3.3",
     "@zxing/library": "^0.23.0",
     "axios": "^1.18.1",
+    "cloudinary": "^2.10.0",
     "install": "^0.13.0",
     "lucide-react": "^1.25.0",
     "npm": "^11.18.0",
