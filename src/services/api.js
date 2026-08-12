@@ -46,7 +46,7 @@ export const createVenta = (data) => api.post('/ventas', {
 export const createDetalleVenta = (data) => api.post('/detalle_ventas', { ...data, local_id: LOCAL_ID })
 
 // ✅ ACTUALIZADO: Selecciona los nuevos campos de descuento y total_neto
-export const getVentas = () => api.get(`/ventas?local_id=eq.${LOCAL_ID}&select=id,fecha,total_bruto,descuento_monto,descuento_motivo,total_neto,estado_pago,cliente_id,clientes(id,nombre,telefono),detalle_ventas(cantidad,precio_unitario,productos(nombre,talle,color)),pagos(monto)&order=fecha.desc`)
+export const getVentas = () => api.get(`/ventas?local_id=eq.${LOCAL_ID}&select=id,fecha,total_bruto,descuento_monto,descuento_motivo,total_neto,estado_pago,cliente_id,clientes(id,nombre,telefono),detalle_ventas(cantidad,precio_unitario,productos(nombre,talle,color,costo)),pagos(monto)&order=fecha.desc`)
 export const deleteDetalleVenta = (ventaId) => api.delete(`/detalle_ventas?venta_id=eq.${ventaId}&local_id=eq.${LOCAL_ID}`)
 export const deleteVenta = (id) => api.delete(`/ventas?id=eq.${id}&local_id=eq.${LOCAL_ID}`)
 
@@ -330,6 +330,139 @@ export const updateCliente = async (clienteId, data) => {
     .eq('id', clienteId)
   
   if (error) throw error
+}
+
+// ==========================================
+// CAPA WEB (e-commerce)
+// ==========================================
+export const enviarAWeb = async (productoId) => {
+  const { data, error } = await supabase
+    .from('productos')
+    .update({
+      web_estado: 'pendiente',
+      web_nota_rechazo: null,
+      web_enviado_en: new Date().toISOString()
+    })
+    .eq('id', productoId)
+    .eq('local_id', LOCAL_ID)
+
+  if (error) throw error
+  return { data }
+}
+
+export const quitarDeWeb = async (productoId) => {
+  const { data, error } = await supabase
+    .from('productos')
+    .update({
+      web_estado: 'no_enviado',
+      web_destacado: false
+    })
+    .eq('id', productoId)
+    .eq('local_id', LOCAL_ID)
+
+  if (error) throw error
+  return { data }
+}
+
+export const aprobarProductoWeb = async (productoId, { descripcion, fotos, destacado, precioWeb }) => {
+  const { data, error } = await supabase
+    .from('productos')
+    .update({
+      web_estado: 'publicado',
+      web_descripcion: descripcion || null,
+      web_fotos: fotos || [],
+      web_destacado: destacado || false,
+      web_precio: precioWeb ?? null,
+      web_nota_rechazo: null,
+      web_aprobado_en: new Date().toISOString()
+    })
+    .eq('id', productoId)
+    .eq('local_id', LOCAL_ID)
+
+  if (error) throw error
+  return { data }
+}
+
+export const rechazarProductoWeb = async (productoId, nota) => {
+  const { data, error } = await supabase
+    .from('productos')
+    .update({
+      web_estado: 'rechazado',
+      web_nota_rechazo: nota
+    })
+    .eq('id', productoId)
+    .eq('local_id', LOCAL_ID)
+
+  if (error) throw error
+  return { data }
+}
+
+export const getPendientesWeb = async () => {
+  const { data, error } = await supabase
+    .from('productos')
+    .select('*')
+    .eq('local_id', LOCAL_ID)
+    .eq('web_estado', 'pendiente')
+
+  if (error) throw error
+  return { data }
+}
+
+export const getPublicadosWeb = async () => {
+  const { data, error } = await supabase
+    .from('productos')
+    .select('*')
+    .eq('local_id', LOCAL_ID)
+    .eq('web_estado', 'publicado')
+    .eq('activo', true)
+
+  if (error) throw error
+  return { data }
+}
+
+// ==========================================
+// GASTOS
+// ==========================================
+export const getGastos = async () => {
+  const { data, error } = await supabase
+    .from('gastos')
+    .select('*')
+    .eq('local_id', LOCAL_ID)
+    .order('fecha', { ascending: false })
+
+  if (error) throw error
+  return { data }
+}
+
+export const addGasto = async (gasto) => {
+  const { data, error } = await supabase
+    .from('gastos')
+    .insert([{ ...gasto, local_id: LOCAL_ID }])
+
+  if (error) throw error
+  return { data }
+}
+
+export const updateGasto = async (id, gasto) => {
+  const { data, error } = await supabase
+    .from('gastos')
+    .update(gasto)
+    .eq('id', id)
+    .eq('local_id', LOCAL_ID)
+
+  if (error) throw error
+  return { data }
+}
+
+export const deleteGasto = async (id) => {
+  const { data, error } = await supabase
+    .from('gastos')
+    .delete()
+    .eq('id', id)
+    .eq('local_id', LOCAL_ID)
+
+  if (error) throw error
+  return { data }
 }
 
 export default api

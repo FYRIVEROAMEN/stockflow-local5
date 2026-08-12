@@ -11,6 +11,7 @@ function ProductForm({ onClose, editId, onSave }) {
     talle: '',
     color: '',
     precio: '',
+    costo: '',   // ✅ NUEVO: para calcular ganancia
     stock: '',
     barcode: ''
   })
@@ -34,6 +35,7 @@ function ProductForm({ onClose, editId, onSave }) {
             talle: p.talle || '',
             color: p.color || '',
             precio: String(p.precio || ''),
+            costo: String(p.costo || ''),
             stock: String(p.stock || ''),
             barcode: p.barcode || ''
           })
@@ -45,9 +47,6 @@ function ProductForm({ onClose, editId, onSave }) {
       })
     }
   }, [editId])
-
-
- 
 
   const subirImagenCloudinary = async (file) => {
     let fileToUpload = file
@@ -93,7 +92,6 @@ function ProductForm({ onClose, editId, onSave }) {
     }
   }
 
-  // ✅ MÉTODO OFICIAL Y ESTABLE DE ZXING
   const handleScanBarcode = async () => {
     setIsScanning(true)
     isCancelledRef.current = false
@@ -193,13 +191,17 @@ function ProductForm({ onClose, editId, onSave }) {
       color: form.color,
       barcode: form.barcode,
       precio: parseFloat(form.precio) || 0,
+      costo: parseFloat(form.costo) || 0,
       stock: parseInt(form.stock) || 0,
       imagen_url: imagenFinal
     }
 
     try {
-      if (editId) await updateProducto(editId, payload)
-      else await createProducto(payload)
+      if (editId) {
+        await updateProducto(editId, payload)
+      } else {
+        await createProducto(payload)
+      }
 
       Swal.fire({
         title: editId ? '¡Actualizado!' : '¡Agregado!',
@@ -259,15 +261,40 @@ function ProductForm({ onClose, editId, onSave }) {
               <input value={form.color} onChange={e => setForm({...form, color: e.target.value})} className="input-lg" placeholder="Negro, Blanco" />
             </div>
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-base font-bold text-gray-700 mb-2">Precio *</label>
+              <label className="block text-base font-bold text-gray-700 mb-2">Precio de venta *</label>
               <input required type="number" step="0.01" value={form.precio} onChange={e => setForm({...form, precio: e.target.value})} className="input-lg" placeholder="0.00" />
             </div>
             <div>
               <label className="block text-base font-bold text-gray-700 mb-2">Stock *</label>
               <input required type="number" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} className="input-lg" placeholder="0" />
             </div>
+          </div>
+
+          {/* ✅ NUEVO: CAMPO COSTO */}
+          <div>
+            <label className="block text-base font-bold text-gray-700 mb-2">
+              Costo de compra
+              <span className="ml-2 text-xs font-normal text-gray-500">(opcional, para calcular ganancia)</span>
+            </label>
+            <input 
+              type="number" 
+              step="0.01" 
+              value={form.costo} 
+              onChange={e => setForm({...form, costo: e.target.value})} 
+              className="input-lg" 
+              placeholder="0.00" 
+            />
+            {form.precio && form.costo && parseFloat(form.precio) > 0 && parseFloat(form.costo) > 0 && (
+              <p className="text-xs mt-1 text-gray-600">
+                Ganancia por unidad: <span className="font-bold text-green-600">
+                  ${(parseFloat(form.precio) - parseFloat(form.costo)).toFixed(2)}
+                </span>
+                {' '}({(((parseFloat(form.precio) - parseFloat(form.costo)) / parseFloat(form.precio)) * 100).toFixed(0)}%)
+              </p>
+            )}
           </div>
 
           <div className="space-y-4">
