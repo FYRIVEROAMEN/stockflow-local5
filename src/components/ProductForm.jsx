@@ -1,20 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
-import { getProductoById, createProducto, updateProducto } from '../services/api'
+import { getProductoById, createProducto, updateProducto, addVariante } from '../services/api'
 import Swal from 'sweetalert2'
-import { Barcode, X } from 'lucide-react'
+import { Barcode, X, Camera, Image as ImageIcon } from 'lucide-react'
 import { BrowserMultiFormatReader } from '@zxing/library'
+import VariantManager from './VariantManager'
 
 function ProductForm({ onClose, editId, onSave }) {
   const [form, setForm] = useState({
     nombre: '',
     categoria: '',
-    talle: '',
-    color: '',
     precio: '',
-    costo: '',   // ✅ NUEVO: para calcular ganancia
-    stock: '',
+    costo: '',
     barcode: ''
   })
+  const [draftVariantes, setDraftVariantes] = useState([])
   const [saving, setSaving] = useState(false)
   const [imagenFile, setImagenFile] = useState(null)
   const [imagenPreview, setImagenPreview] = useState(null)
@@ -32,11 +31,8 @@ function ProductForm({ onClose, editId, onSave }) {
           setForm({
             nombre: p.nombre || '',
             categoria: p.categoria || '',
-            talle: p.talle || '',
-            color: p.color || '',
             precio: String(p.precio || ''),
             costo: String(p.costo || ''),
-            stock: String(p.stock || ''),
             barcode: p.barcode || ''
           })
           if (p.imagen_url) {
@@ -174,6 +170,15 @@ function ProductForm({ onClose, editId, onSave }) {
     }
   }
 
+  const handleImagen = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      setImagenFile(file)
+      setImagenPreview(URL.createObjectURL(file))
+    }
+    e.target.value = ''
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSaving(true)
@@ -187,12 +192,9 @@ function ProductForm({ onClose, editId, onSave }) {
     const payload = {
       nombre: form.nombre,
       categoria: form.categoria,
-      talle: form.talle,
-      color: form.color,
       barcode: form.barcode,
       precio: parseFloat(form.precio) || 0,
       costo: parseFloat(form.costo) || 0,
-      stock: parseInt(form.stock) || 0,
       imagen_url: imagenFinal
     }
 
@@ -200,7 +202,25 @@ function ProductForm({ onClose, editId, onSave }) {
       if (editId) {
         await updateProducto(editId, payload)
       } else {
-        await createProducto(payload)
+        const legacy = {
+          talle: [...new Set(draftVariantes.map(v => v.talle).filter(Boolean))].join(', '),
+          color: [...new Set(draftVariantes.map(v => v.color).filter(Boolean))].join(', '),
+          stock: draftVariantes.reduce((s, v) => s + (Number(v.stock) || 0), 0)
+        }
+        const { data } = await createProducto({ ...payload, ...legacy })
+        const nuevoId = data[0]?.id
+
+        if (nuevoId && draftVariantes.length > 0) {
+          for (const v of draftVariantes) {
+            await addVariante({
+              producto_id: nuevoId,
+              talle: v.talle,
+              color: v.color,
+              stock: v.stock,
+              precio: v.precio ?? null
+            })
+          }
+        }
       }
 
       Swal.fire({
@@ -253,69 +273,45 @@ function ProductForm({ onClose, editId, onSave }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-base font-bold text-gray-700 mb-2">Talle</label>
-              <input value={form.talle} onChange={e => setForm({...form, talle: e.target.value})} className="input-lg" placeholder="S, M, L" />
-            </div>
-            <div>
-              <label className="block text-base font-bold text-gray-700 mb-2">Color</label>
-              <input value={form.color} onChange={e => setForm({...form, color: e.target.value})} className="input-lg" placeholder="Negro, Blanco" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
               <label className="block text-base font-bold text-gray-700 mb-2">Precio de venta *</label>
               <input required type="number" step="0.01" value={form.precio} onChange={e => setForm({...form, precio: e.target.value})} className="input-lg" placeholder="0.00" />
             </div>
             <div>
-              <label className="block text-base font-bold text-gray-700 mb-2">Stock *</label>
-              <input required type="number" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} className="input-lg" placeholder="0" />
+              <label className="block text-base font-bold text-gray-700 mb-2">Costo de compra</label>
+              <input type="number" step="0.01" value={form.costo} onChange={e => setForm({...form, costo: e.target.value})} className="input-lg" placeholder="0.00" />
             </div>
           </div>
+          {form.precio && form.costo && parseFloat(form.precio) > 0 && parseFloat(form.costo) > 0 && (
+            <p className="text-xs -mt-2 text-gray-600">
+              Ganancia por unidad: <span className="font-bold text-green-600">
+                ${(parseFloat(form.precio) - parseFloat(form.costo)).toFixed(2)}
+              </span>
+              {' '}({(((parseFloat(form.precio) - parseFloat(form.costo)) / parseFloat(form.precio)) * 100).toFixed(0)}%)
+            </p>
+          )}
 
-          {/* ✅ NUEVO: CAMPO COSTO */}
-          <div>
-            <label className="block text-base font-bold text-gray-700 mb-2">
-              Costo de compra
-              <span className="ml-2 text-xs font-normal text-gray-500">(opcional, para calcular ganancia)</span>
-            </label>
-            <input 
-              type="number" 
-              step="0.01" 
-              value={form.costo} 
-              onChange={e => setForm({...form, costo: e.target.value})} 
-              className="input-lg" 
-              placeholder="0.00" 
-            />
-            {form.precio && form.costo && parseFloat(form.precio) > 0 && parseFloat(form.costo) > 0 && (
-              <p className="text-xs mt-1 text-gray-600">
-                Ganancia por unidad: <span className="font-bold text-green-600">
-                  ${(parseFloat(form.precio) - parseFloat(form.costo)).toFixed(2)}
-                </span>
-                {' '}({(((parseFloat(form.precio) - parseFloat(form.costo)) / parseFloat(form.precio)) * 100).toFixed(0)}%)
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-4">
+          {/* ✅ IMAGEN: Botones mobile-first (cámara + galería) */}
+          <div className="space-y-2">
             <label className="block text-base font-bold text-gray-700 mb-2">Imagen del Producto</label>
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
-              onChange={(e) => {
-                const file = e.target.files[0]
-                if (file) {
-                  setImagenFile(file)
-                  setImagenPreview(URL.createObjectURL(file))
-                }
-              }}
-              className="input-lg"
-              style={{ padding: '10px', height: 'auto' }}
-            />
+            <div className="flex gap-2">
+              <label className="btn btn-secondary flex items-center justify-center gap-2" style={{ flex: 1, cursor: 'pointer' }}>
+                <Camera size={18} />
+                Sacar foto
+                <input type="file" accept="image/*" capture="environment" hidden onChange={handleImagen} />
+              </label>
+              <label className="btn btn-secondary flex items-center justify-center gap-2" style={{ flex: 1, cursor: 'pointer' }}>
+                <ImageIcon size={18} />
+                Galería
+                <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif" hidden onChange={handleImagen} />
+              </label>
+            </div>
             {imagenPreview && (
               <img src={imagenPreview} alt="Vista previa" style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', marginTop: '10px', border: '1px solid #ddd' }} />
             )}
           </div>
+
+          {/* ✅ ÚNICO lugar para talle/color/stock */}
+          <VariantManager productoId={editId || null} onDraftChange={setDraftVariantes} />
 
           <div className="flex gap-4 pt-4">
             <button type="button" onClick={onClose} className="btn btn-secondary" style={{ flex: 1 }}>Cancelar</button>

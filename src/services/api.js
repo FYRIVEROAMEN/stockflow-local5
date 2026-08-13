@@ -1,12 +1,10 @@
 import axios from 'axios'
 import { createClient } from '@supabase/supabase-js'
 
-// 👇 Leemos TODO desde el .env.local (más seguro y prolijo)
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 const LOCAL_ID = import.meta.env.VITE_LOCAL_ID || 1
 
-// Cliente axios para REST API
 const api = axios.create({
   baseURL: `${SUPABASE_URL}/rest/v1`,
   headers: {
@@ -17,7 +15,6 @@ const api = axios.create({
   }
 })
 
-// Cliente Supabase para RPC y operaciones directas
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 // ==========================================
@@ -34,18 +31,68 @@ export const deactivateProducto = (id) => api.patch(`/productos?id=eq.${id}&loca
 export const reactivateProducto = (id) => api.patch(`/productos?id=eq.${id}&local_id=eq.${LOCAL_ID}`, { activo: true })
 
 // ==========================================
+// VARIANTES (talle × color con stock propio)
+// ==========================================
+export const getVariantes = async (productoId) => {
+  const { data, error } = await supabase
+    .from('variantes')
+    .select('*')
+    .eq('producto_id', productoId)
+    .eq('activo', true)
+    .order('color', { ascending: true })
+    .order('talle', { ascending: true })
+  if (error) throw error
+  return { data }
+}
+
+// INSERT sin id (el id lo genera la base)
+export const addVariante = async (variante) => {
+  const { data, error } = await supabase
+    .from('variantes')
+    .insert(variante)
+    .select()
+  if (error) throw error
+  return { data }
+}
+
+// UPDATE por id (para stock, precio, etc.)
+export const updateVariante = async (id, cambios) => {
+  const { data, error } = await supabase
+    .from('variantes')
+    .update({ ...cambios, actualizado_en: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+  if (error) throw error
+  return { data }
+}
+
+export const deleteVariante = async (id) => {
+  const { data, error } = await supabase
+    .from('variantes')
+    .update({ activo: false, stock: 0 })
+    .eq('id', id)
+  if (error) throw error
+  return { data }
+}
+
+export const descontarStockVariante = async (varianteId, cantidad) => {
+  const { data, error } = await supabase
+    .rpc('descontar_stock_variante', { p_variante_id: varianteId, p_cantidad: cantidad })
+  if (error) throw error
+  return { data }
+}
+
+// ==========================================
 // VENTAS (ACTUALIZADO CON DESCUENTOS)
 // ==========================================
 export const createVenta = (data) => api.post('/ventas', { 
   ...data, 
   local_id: LOCAL_ID,
-  // Aseguramos que total_neto se calcule correctamente si viene desde el frontend
   total_neto: data.total_neto !== undefined ? data.total_neto : (data.total_bruto || 0) - (data.descuento_monto || 0)
 })
 
 export const createDetalleVenta = (data) => api.post('/detalle_ventas', { ...data, local_id: LOCAL_ID })
 
-// ✅ ACTUALIZADO: Selecciona los nuevos campos de descuento y total_neto
 export const getVentas = () => api.get(`/ventas?local_id=eq.${LOCAL_ID}&select=id,fecha,total_bruto,descuento_monto,descuento_motivo,total_neto,estado_pago,cliente_id,clientes(id,nombre,telefono),detalle_ventas(cantidad,precio_unitario,productos(nombre,talle,color,costo)),pagos(monto)&order=fecha.desc`)
 export const deleteDetalleVenta = (ventaId) => api.delete(`/detalle_ventas?venta_id=eq.${ventaId}&local_id=eq.${LOCAL_ID}`)
 export const deleteVenta = (id) => api.delete(`/ventas?id=eq.${id}&local_id=eq.${LOCAL_ID}`)
@@ -54,21 +101,19 @@ export const deleteVenta = (id) => api.delete(`/ventas?id=eq.${id}&local_id=eq.$
 // FUNCIONES PARA CLIENTES Y PAGOS
 // ==========================================
 
-// Crear o actualizar cliente
 export const crearOActualizarCliente = async (telefono, nombre, localId, montoVenta) => {
   const { data, error } = await supabase
     .rpc('crear_o_actualizar_cliente', {
       p_telefono: telefono,
       p_nombre: nombre || null,
       p_local_id: localId,
-      p_monto_venta: montoVenta // Este ahora recibe el total_neto
+      p_monto_venta: montoVenta
     })
   
   if (error) throw error
-  return data // Retorna el cliente_id
+  return data
 }
 
-// Registrar un pago
 export const registrarPago = async (ventaId, clienteId, monto, localId, nota = null) => {
   const { data, error } = await supabase
     .from('pagos')
@@ -85,7 +130,6 @@ export const registrarPago = async (ventaId, clienteId, monto, localId, nota = n
   return data
 }
 
-// Actualizar estado de pago de una venta
 export const actualizarEstadoPagoVenta = async (ventaId, estadoPago) => {
   const { error } = await supabase
     .from('ventas')
@@ -96,7 +140,6 @@ export const actualizarEstadoPagoVenta = async (ventaId, estadoPago) => {
   if (error) throw error
 }
 
-// Obtener clientes con deuda
 export const getClientesConDeuda = async () => {
   const { data, error } = await supabase
     .from('clientes_con_deuda')
@@ -108,7 +151,6 @@ export const getClientesConDeuda = async () => {
   return { data }
 }
 
-// Obtener historial de pagos de un cliente
 export const getPagosPorCliente = async (clienteId) => {
   const { data, error } = await supabase
     .from('pagos')
@@ -120,9 +162,7 @@ export const getPagosPorCliente = async (clienteId) => {
   return { data }
 }
 
-// Registrar nuevo pago a un cliente (para saldar deuda)
 export const registrarPagoDeuda = async (clienteId, monto, localId, nota = null) => {
-  // ✅ ACTUALIZADO: Usamos total_neto en lugar de total
   const { data: ventasPendientes, error: errorVentas } = await supabase
     .from('ventas')
     .select('id, total_neto, estado_pago')
@@ -135,23 +175,19 @@ export const registrarPagoDeuda = async (clienteId, monto, localId, nota = null)
   let montoRestante = monto
   let pagosCreados = []
   
-  // 2. Distribuir el pago entre las ventas pendientes (FIFO)
   for (const venta of ventasPendientes) {
     if (montoRestante <= 0) break
     
-    // Calcular cuánto debe esta venta
     const { data: pagosExistentes } = await supabase
       .from('pagos')
       .select('monto')
       .eq('venta_id', venta.id)
     
     const totalPagado = pagosExistentes.reduce((sum, p) => sum + Number(p.monto), 0)
-    // ✅ ACTUALIZADO: La deuda se calcula sobre el total_neto
     const deudaVenta = Number(venta.total_neto) - totalPagado
     
     const montoAPagar = Math.min(montoRestante, deudaVenta)
     
-    // Crear el pago
     const { data: pagoData, error: errorPago } = await supabase
       .from('pagos')
       .insert([{
@@ -168,7 +204,6 @@ export const registrarPagoDeuda = async (clienteId, monto, localId, nota = null)
     
     montoRestante -= montoAPagar
     
-    // Actualizar estado de la venta
     const nuevoTotalPagado = totalPagado + montoAPagar
     if (nuevoTotalPagado >= Number(venta.total_neto)) {
       await supabase
@@ -183,7 +218,6 @@ export const registrarPagoDeuda = async (clienteId, monto, localId, nota = null)
     }
   }
   
-  // ✅ FIX: Actualizar los totales del cliente en la tabla `clientes`
   const { data: todosLosPagos } = await supabase
     .from('pagos')
     .select('monto')
@@ -213,7 +247,6 @@ export const registrarPagoDeuda = async (clienteId, monto, localId, nota = null)
   return pagosCreados
 }
 
-// Obtener todos los clientes del local
 export const getClientes = async () => {
   const { data, error } = await supabase
     .from('clientes')
@@ -225,9 +258,7 @@ export const getClientes = async () => {
   return { data }
 }
 
-// Obtener ventas pendientes de un cliente con detalle de pagos y productos
 export const getVentasPendientesCliente = async (clienteId) => {
-  // ✅ ACTUALIZADO: Usamos total_neto
   const { data: ventas, error: errorVentas } = await supabase
     .from('ventas')
     .select('id, fecha, total_neto, estado_pago')
@@ -237,24 +268,20 @@ export const getVentasPendientesCliente = async (clienteId) => {
   
   if (errorVentas) throw errorVentas
   
-  // 2. Para cada venta, obtener los pagos y productos
   const ventasConDetalles = await Promise.all(
     (ventas || []).map(async (venta) => {
-      // Obtener pagos
       const { data: pagos } = await supabase
         .from('pagos')
         .select('monto, fecha, nota')
         .eq('venta_id', venta.id)
         .order('fecha', { ascending: true })
       
-      // Obtener productos de la venta
       const { data: detalleVentas } = await supabase
         .from('detalle_ventas')
         .select('cantidad, precio_unitario, productos(nombre, talle, color)')
         .eq('venta_id', venta.id)
       
       const totalPagado = (pagos || []).reduce((sum, p) => sum + Number(p.monto), 0)
-      // ✅ ACTUALIZADO: Pendiente se calcula sobre total_neto
       const pendiente = Number(venta.total_neto) - totalPagado
       
       return {
@@ -270,7 +297,6 @@ export const getVentasPendientesCliente = async (clienteId) => {
   return { data: ventasConDetalles }
 }
 
-// Eliminar/resetear deuda de un cliente (para deudas huérfanas)
 export const eliminarDeudaCliente = async (clienteId) => {
   const { error } = await supabase
     .from('clientes')
@@ -284,22 +310,18 @@ export const eliminarDeudaCliente = async (clienteId) => {
   if (error) throw error
 }
 
-// Eliminar cliente completamente de la base de datos
 export const eliminarCliente = async (clienteId) => {
   try {
-    // 1. Primero eliminar todos los pagos asociados
     await supabase
       .from('pagos')
       .delete()
       .eq('cliente_id', clienteId)
     
-    // 2. Luego, desvincular las ventas (setear cliente_id a NULL)
     await supabase
       .from('ventas')
       .update({ cliente_id: null })
       .eq('cliente_id', clienteId)
     
-    // 3. Finalmente eliminar el cliente
     const { error } = await supabase
       .from('clientes')
       .delete()
@@ -312,7 +334,6 @@ export const eliminarCliente = async (clienteId) => {
   }
 }
 
-// Actualizar el cliente_id de una venta ya creada
 export const updateVentaCliente = async (ventaId, clienteId) => {
   const { error } = await supabase
     .from('ventas')
@@ -322,7 +343,6 @@ export const updateVentaCliente = async (ventaId, clienteId) => {
   if (error) throw error
 }
 
-// Actualizar datos de un cliente (nombre y/o teléfono)
 export const updateCliente = async (clienteId, data) => {
   const { error } = await supabase
     .from('clientes')
