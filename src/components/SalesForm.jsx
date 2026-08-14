@@ -7,7 +7,9 @@ import {
   crearOActualizarCliente, 
   registrarPago, 
   actualizarEstadoPagoVenta,
-  updateVentaCliente
+  updateVentaCliente,
+  getVariantes,
+  descontarStockVariante
 } from '../services/api'
 import Swal from 'sweetalert2'
 import { BrowserMultiFormatReader } from '@zxing/library'
@@ -66,6 +68,12 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
   const [showScanTooltip, setShowScanTooltip] = useState(false)
   const [showDiscountTooltip, setShowDiscountTooltip] = useState(false)
   
+  // Selector de variantes: panel inline compartido (búsqueda + asignación desde carrito)
+  const [variantesProducto, setVariantesProducto] = useState(null)
+  const [variantes, setVariantes] = useState([])
+  const [asignandoItem, setAsignandoItem] = useState(null)
+  const [tallePanel, setTallePanel] = useState(null) // paso 1 del selector en 2 pasos
+  
   const codeReaderRef = useRef(null)
   const isCancelledRef = useRef(false)
   const montoInputRef = useRef(null)
@@ -92,37 +100,148 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(pattern)
   }, [])
 
-  const addToCart = useCallback((product) => {
+  // Flujo 1: desde el buscador / escáner
+  const addToCart = useCallback(async (product) => {
     triggerHaptic(20)
-    const existingItem = cart.find(item => item.id === product.id)
-    if (existingItem) {
-      if (existingItem.quantity + 1 > product.stock) {
-        Swal.fire({ title: 'Stock insuficiente', text: `Solo quedan ${product.stock}.`, icon: 'warning', confirmButtonColor: '#dc2626' })
-        return
-      }
-      setCart(cart.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item))
-    } else {
-      setCart([...cart, { ...product, quantity: 1 }])
-      if (cart.length === 0) setMontoPagado(product.precio.toString())
+    
+    let variantesData = []
+    try {
+      const { data } = await getVariantes(product.id)
+      variantesData = data || []
+    } catch (err) {
+      console.error('Error cargando variantes:', err)
     }
+
+    if (variantesData.length <= 1) {
+      const variante = variantesData[0]
+      const existingItem = cart.find(item => item.id === product.id && item.variante_id === variante?.id)
+      
+      if (existingItem) {
+        const stockDisponible = variante ? variante.stock : product.stock
+        if (existingItem.quantity + 1 > stockDisponible) {
+          Swal.fire({ title: 'Stock insuficiente', text: `Solo quedan ${stockDisponible}.`, icon: 'warning', confirmButtonColor: '#dc2626' })
+          return
+        }
+        setCart(cart.map(item => 
+          item.id === product.id && item.variante_id === variante?.id 
+            ? { ...item, quantity: item.quantity + 1 } 
+            : item
+        ))
+      } else {
+        const stockDisponible = variante ? variante.stock : product.stock
+        if (stockDisponible <= 0) {
+          Swal.fire({ title: 'Sin stock', text: 'Este producto no tiene stock disponible.', icon: 'warning', confirmButtonColor: '#dc2626' })
+          return
+        }
+        setCart([...cart, { 
+          ...product, 
+          variante_id: variante?.id || null,
+          talle: variante?.talle || product.talle,
+          color: variante?.color || product.color,
+          stock: stockDisponible,
+          quantity: 1 
+        }])
+        if (cart.length === 0) setMontoPagado(product.precio.toString())
+      }
+    } else {
+      setTallePanel(null)
+      setVariantesProducto(product)
+      setVariantes(variantesData)
+    }
+    
     setSearchTerm('')
     setFilteredProducts([])
-  }, [cart, triggerHaptic])
+  }, [cart, triggerHaptic, productos])
 
-  const updateQuantity = useCallback((id, newQuantity) => {
+  // Flujo 2: desde el carrito (ítem sin variante, viene del Dashboard)
+  const abrirSelectorParaItem = async (item) => {
+    try {
+      const { data } = await getVariantes(item.id)
+      const vars = data || []
+      if (vars.length === 0) {
+        Swal.fire({ 
+          title: 'Sin variantes', 
+          text: 'Este producto no tiene variantes cargadas. Editá el producto y agregale talles.', 
+          icon: 'info', 
+          confirmButtonColor: '#2563eb' 
+        })
+        return
+      }
+      const base = productos.find(p => p.id === item.id) || item
+      setTallePanel(null)
+      setAsignandoItem(item)
+      setVariantesProducto(base)
+      setVariantes(vars)
+    } catch (err) {
+      Swal.fire({ title: 'Error', text: err.message, icon: 'error', confirmButtonColor: '#dc2626' })
+    }
+  }
+
+  // Agregar variante: maneja ambos modos (nuevo y asignar)
+  const agregarConVariante = (variante) => {
+    if (asignandoItem) {
+      const nuevo = {
+        ...asignandoItem,
+        variante_id: variante.id,
+        talle: variante.talle,
+        color: variante.color,
+        stock: variante.stock,
+        precio: variante.precio || asignandoItem.precio,
+        quantity: 1
+      }
+      setCart(
+        cart.filter(i => !(i.id === asignandoItem.id && !i.variante_id)).concat([nuevo])
+      )
+      setAsignandoItem(null)
+    } else {
+      const existingItem = cart.find(item => item.id === variantesProducto.id && item.variante_id === variante.id)
+      if (existingItem) {
+        if (existingItem.quantity + 1 > variante.stock) {
+          Swal.fire({ title: 'Stock insuficiente', text: `Solo quedan ${variante.stock} de esta variante.`, icon: 'warning', confirmButtonColor: '#dc2626' })
+          return
+        }
+        setCart(cart.map(item => 
+          item.id === variantesProducto.id && item.variante_id === variante.id 
+            ? { ...item, quantity: item.quantity + 1 } 
+            : item
+        ))
+      } else {
+        setCart([...cart, { 
+          ...variantesProducto, 
+          variante_id: variante.id,
+          talle: variante.talle,
+          color: variante.color,
+          stock: variante.stock,
+          precio: variante.precio || variantesProducto.precio,
+          quantity: 1 
+        }])
+        if (cart.length === 0) setMontoPagado((variante.precio || variantesProducto.precio).toString())
+      }
+    }
+    setVariantesProducto(null)
+    setVariantes([])
+    setTallePanel(null)
+  }
+
+  const updateQuantity = useCallback((id, varianteId, newQuantity) => {
     if (newQuantity < 1) return
     triggerHaptic(10)
-    const product = productos.find(p => p.id === id)
-    if (newQuantity > product.stock) {
-      Swal.fire({ title: 'Stock insuficiente', text: `Máximo: ${product.stock}`, icon: 'warning', confirmButtonColor: '#dc2626' })
+    const item = cart.find(i => i.id === id && i.variante_id === varianteId)
+    if (!item) return
+    if (newQuantity > item.stock) {
+      Swal.fire({ title: 'Stock insuficiente', text: `Máximo: ${item.stock}`, icon: 'warning', confirmButtonColor: '#dc2626' })
       return
     }
-    setCart(cart.map(item => item.id === id ? { ...item, quantity: newQuantity } : item))
-  }, [cart, productos, triggerHaptic])
+    setCart(cart.map(i => 
+      i.id === id && i.variante_id === varianteId 
+        ? { ...i, quantity: newQuantity } 
+        : i
+    ))
+  }, [cart, triggerHaptic])
 
-  const removeFromCart = useCallback((id) => {
+  const removeFromCart = useCallback((id, varianteId) => {
     triggerHaptic([10, 50, 10])
-    const newCart = cart.filter(item => item.id !== id)
+    const newCart = cart.filter(item => !(item.id === id && item.variante_id === varianteId))
     setCart(newCart)
     if (newCart.length === 0) setMontoPagado('')
   }, [cart, triggerHaptic])
@@ -143,6 +262,17 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
     if (!clienteTelefono.trim()) return Swal.fire({ title: 'Teléfono requerido', text: 'Necesario para registrar la venta y el sorteo.', icon: 'warning', confirmButtonColor: '#dc2626' })
     if (montoPagadoNum < 0 || montoPagadoNum > totalNeto) return Swal.fire({ title: 'Monto inválido', text: `Debe ser entre $0 y $${totalNeto.toFixed(2)}.`, icon: 'warning', confirmButtonColor: '#dc2626' })
 
+    const sinVariante = cart.find(i => !i.variante_id)
+    if (sinVariante) {
+      Swal.fire({ 
+        title: 'Falta elegir variante', 
+        text: `${sinVariante.nombre} necesita que elijas talle/color antes de confirmar la venta.`,
+        icon: 'warning', 
+        confirmButtonColor: '#2563eb' 
+      })
+      return
+    }
+
     setIsProcessing(true)
     triggerHaptic(50)
     
@@ -157,8 +287,20 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
       const ventaId = ventaData[0].id
 
       for (const item of cart) {
-        await createDetalleVenta({ venta_id: ventaId, producto_id: item.id, cantidad: item.quantity, precio_unitario: item.precio, local_id: LOCAL_ID })
-        await updateProducto(item.id, { stock: item.stock - item.quantity })
+        await createDetalleVenta({ 
+          venta_id: ventaId, 
+          producto_id: item.id, 
+          variante_id: item.variante_id,
+          cantidad: item.quantity, 
+          precio_unitario: item.precio, 
+          local_id: LOCAL_ID 
+        })
+        
+        if (item.variante_id) {
+          await descontarStockVariante(item.variante_id, item.quantity)
+        } else {
+          await updateProducto(item.id, { stock: item.stock - item.quantity })
+        }
       }
 
       const clienteId = await crearOActualizarCliente(clienteTelefono.trim(), clienteNombre.trim() || null, LOCAL_ID, totalNeto)
@@ -172,7 +314,11 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
 
       const fecha = new Date().toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
       let mensajeWhatsApp = `*COMPROBANTE DE VENTA*\n━━━━━━━━━━━━━━━━━━━━\n📅 ${fecha}\n Venta #${ventaId}\n━━━━━━━━━━━━━━━━━━━━\n\n*PRODUCTOS:*\n`
-      cart.forEach(item => { mensajeWhatsApp += `${item.quantity}x ${item.nombre}\n   $${(item.precio * item.quantity).toFixed(2)}\n` })
+      cart.forEach(item => { 
+        mensajeWhatsApp += `${item.quantity}x ${item.nombre}`
+        if (item.talle || item.color) mensajeWhatsApp += ` (${item.talle || ''} ${item.color || ''})`.trim()
+        mensajeWhatsApp += `\n   $${(item.precio * item.quantity).toFixed(2)}\n` 
+      })
       mensajeWhatsApp += `\n━━━━━━━━━━━━━━━━━━━━\n*Subtotal: $${totalBruto.toFixed(2)}*\n`
       if (aplicarDescuento && descuentoMonto > 0) mensajeWhatsApp += `*Descuento (${motivoDescuento}): -$${descuentoMonto.toFixed(2)}*\n`
       mensajeWhatsApp += `*TOTAL: $${totalNeto.toFixed(2)}*\n`
@@ -274,7 +420,70 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
               </div>
             </div>
 
-            {filteredProducts.length > 0 && (
+            {/* ✅ Panel de variantes en 2 pasos (talle → color) */}
+            {variantesProducto && (
+              <div className="bg-white border-2 border-green-300 rounded-xl p-4 shadow-sm">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="font-bold text-gray-800 text-sm">
+                    {variantesProducto.nombre}
+                    {asignandoItem && <span className="text-xs text-blue-600 ml-2">(asignando variante)</span>}
+                  </p>
+                  <button onClick={() => { setVariantesProducto(null); setVariantes([]); setAsignandoItem(null); setTallePanel(null) }} className="text-gray-400 p-1">
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Sin talles cargados: elegir color directo */}
+                {[...new Set(variantes.map(v => v.talle).filter(Boolean))].length === 0 ? (
+                  <>
+                    <p className="text-xs text-gray-500 mb-3">Tocá el color que llevás:</p>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {variantes.map(v => (
+                        <button key={v.id} disabled={v.stock <= 0} onClick={() => agregarConVariante(v)}
+                          className={`p-2 rounded-xl border-2 text-center transition active:scale-95 ${v.stock > 0 ? 'border-gray-200 bg-white hover:border-green-500 hover:bg-green-50' : 'border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed'}`}>
+                          <p className="font-bold text-gray-800 truncate">{v.color || '—'}</p>
+                          <p className={`text-[10px] font-bold ${v.stock > 0 ? 'text-green-600' : 'text-red-500'}`}>{v.stock > 0 ? `${v.stock} uds` : 'agotado'}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : !tallePanel ? (
+                  <>
+                    <p className="text-xs text-gray-500 mb-3">Paso 1 de 2 — tocá el talle:</p>
+                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                      {[...new Set(variantes.map(v => v.talle).filter(Boolean))].map(t => {
+                        const stockTalle = variantes.filter(v => v.talle === t).reduce((s, v) => s + v.stock, 0)
+                        return (
+                          <button key={t} disabled={stockTalle <= 0} onClick={() => setTallePanel(t)}
+                            className={`p-2 rounded-xl border-2 text-center transition active:scale-95 ${stockTalle > 0 ? 'border-gray-200 bg-white hover:border-green-500 hover:bg-green-50' : 'border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed'}`}>
+                            <p className="font-bold text-gray-800">{t}</p>
+                            <p className={`text-[10px] font-bold ${stockTalle > 0 ? 'text-green-600' : 'text-red-500'}`}>{stockTalle} uds</p>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 mb-3">
+                      <button onClick={() => setTallePanel(null)} className="text-xs text-blue-600 font-semibold whitespace-nowrap">← Cambiar talle</button>
+                      <p className="text-xs text-gray-500">Paso 2 de 2 — color del talle <strong>{tallePanel}</strong>:</p>
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {variantes.filter(v => v.talle === tallePanel).map(v => (
+                        <button key={v.id} disabled={v.stock <= 0} onClick={() => agregarConVariante(v)}
+                          className={`p-2 rounded-xl border-2 text-center transition active:scale-95 ${v.stock > 0 ? 'border-gray-200 bg-white hover:border-green-500 hover:bg-green-50' : 'border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed'}`}>
+                          <p className="font-bold text-gray-800 truncate">{v.color || '—'}</p>
+                          <p className={`text-[10px] font-bold ${v.stock > 0 ? 'text-green-600' : 'text-red-500'}`}>{v.stock > 0 ? `${v.stock} uds` : 'agotado'}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {!variantesProducto && filteredProducts.length > 0 && (
               <div className="bg-white border-2 border-gray-200 rounded-xl max-h-[40vh] lg:max-h-none overflow-y-auto shadow-sm">
                 {filteredProducts.map(product => (
                   <div key={product.id} onClick={() => product.stock > 0 && addToCart(product)}
@@ -308,41 +517,53 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
                   </h3>
                   <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                     {cart.map(item => (
-  <div key={item.id} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-    {/* Fila 1: Nombre y precio */}
-    <div className="mb-2">
-      <p className="font-bold text-gray-800 text-sm leading-tight" title={item.nombre}>
-        {item.nombre}
-      </p>
-      <p className="text-xs text-gray-500 mt-0.5">
-        ${Number(item.precio).toFixed(2)} c/u
-      </p>
-    </div>
-    
-    {/* Fila 2: Controles */}
-    <div className="flex items-center justify-between">
-      <span className="text-xs text-gray-600 font-medium">Cantidad:</span>
-      <div className="flex items-center gap-1">
-        <button onClick={() => updateQuantity(item.id, item.quantity - 1)} 
-          className="w-8 h-8 flex items-center justify-center bg-white border border-gray-300 rounded-full text-gray-600 active:bg-gray-100 active:scale-95 transition-all"
-          aria-label={`Restar uno a ${item.nombre}`}>
-          <Minus className="w-3 h-3" />
-        </button>
-        <span className="text-sm font-bold w-6 text-center">{item.quantity}</span>
-        <button onClick={() => updateQuantity(item.id, item.quantity + 1)} 
-          className="w-8 h-8 flex items-center justify-center bg-white border border-gray-300 rounded-full text-gray-600 active:bg-gray-100 active:scale-95 transition-all"
-          aria-label={`Sumar uno a ${item.nombre}`}>
-          <Plus className="w-3 h-3" />
-        </button>
-        <button onClick={() => removeFromCart(item.id)} 
-          className="w-8 h-8 flex items-center justify-center bg-red-50 border border-red-200 rounded-full text-red-600 active:bg-red-100 active:scale-95 transition-all ml-1"
-          aria-label={`Eliminar ${item.nombre}`}>
-          <Trash2 className="w-3 h-3" />
-        </button>
-      </div>
-    </div>
-  </div>
-))}
+                      <div key={`${item.id}-${item.variante_id || 'legacy'}`} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        <div className="mb-2">
+                          <p className="font-bold text-gray-800 text-sm leading-tight" title={item.nombre}>
+                            {item.nombre}
+                          </p>
+                          {(item.talle || item.color) && (
+                            <p className="text-xs text-gray-600 mt-0.5">
+                              {item.talle && <span className="mr-2">Talle: {item.talle}</span>}
+                              {item.color && <span>Color: {item.color}</span>}
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            ${Number(item.precio).toFixed(2)} c/u
+                          </p>
+                          {!item.variante_id && (
+                            <button
+                              onClick={() => abrirSelectorParaItem(item)}
+                              className="mt-2 w-full py-1.5 px-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold active:scale-95 transition hover:bg-blue-100"
+                            >
+                              🎯 Elegir talle / color
+                            </button>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-600 font-medium">Cantidad:</span>
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => updateQuantity(item.id, item.variante_id, item.quantity - 1)} 
+                              className="w-8 h-8 flex items-center justify-center bg-white border border-gray-300 rounded-full text-gray-600 active:bg-gray-100 active:scale-95 transition-all"
+                              aria-label={`Restar uno a ${item.nombre}`}>
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="text-sm font-bold w-6 text-center">{item.quantity}</span>
+                            <button onClick={() => updateQuantity(item.id, item.variante_id, item.quantity + 1)} 
+                              className="w-8 h-8 flex items-center justify-center bg-white border border-gray-300 rounded-full text-gray-600 active:bg-gray-100 active:scale-95 transition-all"
+                              aria-label={`Sumar uno a ${item.nombre}`}>
+                              <Plus className="w-3 h-3" />
+                            </button>
+                            <button onClick={() => removeFromCart(item.id, item.variante_id)} 
+                              className="w-8 h-8 flex items-center justify-center bg-red-50 border border-red-200 rounded-full text-red-600 active:bg-red-100 active:scale-95 transition-all ml-1"
+                              aria-label={`Eliminar ${item.nombre}`}>
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
