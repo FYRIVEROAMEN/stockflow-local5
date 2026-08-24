@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { getProductoById, createProducto, updateProducto, addVariante } from '../services/api'
+import { getProductoById, createProducto, updateProducto, addVariante, getCategoriasApp } from '../services/api'
 import Swal from 'sweetalert2'
 import { Barcode, X, Camera, Image as ImageIcon } from 'lucide-react'
 import { BrowserMultiFormatReader } from '@zxing/library'
@@ -18,6 +18,7 @@ function ProductForm({ onClose, editId, onSave }) {
   const [imagenFile, setImagenFile] = useState(null)
   const [imagenPreview, setImagenPreview] = useState(null)
   const [imagenURL, setImagenURL] = useState('')
+  const [categoriasExistentes, setCategoriasExistentes] = useState([])
 
   const [isScanning, setIsScanning] = useState(false)
   const codeReaderRef = useRef(null)
@@ -43,6 +44,10 @@ function ProductForm({ onClose, editId, onSave }) {
       })
     }
   }, [editId])
+
+  useEffect(() => {
+    getCategoriasApp().then(({ data }) => setCategoriasExistentes(data || [])).catch(() => {})
+  }, [])
 
   const subirImagenCloudinary = async (file) => {
     let fileToUpload = file
@@ -191,7 +196,7 @@ function ProductForm({ onClose, editId, onSave }) {
 
     const payload = {
       nombre: form.nombre,
-      categoria: form.categoria,
+      categoria: form.categoria.trim() || null,
       barcode: form.barcode,
       precio: parseFloat(form.precio) || 0,
       costo: parseFloat(form.costo) || 0,
@@ -248,7 +253,16 @@ function ProductForm({ onClose, editId, onSave }) {
           </div>
           <div>
             <label className="block text-base font-bold text-gray-700 mb-2">Categoría</label>
-            <input value={form.categoria} onChange={e => setForm({...form, categoria: e.target.value})} className="input-lg" placeholder="Ej: Remeras, Pantalones" />
+            <input 
+              value={form.categoria} 
+              onChange={e => setForm({...form, categoria: e.target.value})} 
+              className="input-lg" 
+              placeholder="Ej: Remeras Hombre" 
+              list="categorias-sugeridas"
+            />
+            <datalist id="categorias-sugeridas">
+              {categoriasExistentes.map(c => <option key={c} value={c} />)}
+            </datalist>
           </div>
 
           <div>
@@ -290,7 +304,6 @@ function ProductForm({ onClose, editId, onSave }) {
             </p>
           )}
 
-          {/* ✅ IMAGEN: Botones mobile-first (cámara + galería) */}
           <div className="space-y-2">
             <label className="block text-base font-bold text-gray-700 mb-2">Imagen del Producto</label>
             <div className="flex gap-2">
@@ -310,7 +323,6 @@ function ProductForm({ onClose, editId, onSave }) {
             )}
           </div>
 
-          {/* ✅ ÚNICO lugar para talle/color/stock */}
           <VariantManager productoId={editId || null} onDraftChange={setDraftVariantes} />
 
           <div className="flex gap-4 pt-4">

@@ -3,6 +3,13 @@ import { getClientesConDeuda, getClientes, registrarPagoDeuda, getVentasPendient
 import { Search, Trash2, Download, MoreVertical, Phone, Copy, Eye, UserX, ChevronUp, Wallet, MessageCircle, Edit2 } from 'lucide-react'
 import Swal from 'sweetalert2'
 
+// Helper: talle/color efectivo (variante > legacy)
+const getVarianteInfo = (item) => {
+  const talle = item.variantes?.talle || item.productos?.talle
+  const color = item.variantes?.color || item.productos?.color
+  return { talle, color }
+}
+
 function ClientesView() {
   const [clientes, setClientes] = useState([])
   const [loading, setLoading] = useState(true)
@@ -208,7 +215,8 @@ function ClientesView() {
       showConfirmButton: false
     })
   }
-    const handleEditarCliente = (cliente) => {
+
+  const handleEditarCliente = (cliente) => {
     setOpenMenu(null)
     
     Swal.fire({
@@ -270,7 +278,6 @@ function ClientesView() {
     <div className="bg-white p-4 sm:p-8 rounded-xl shadow-sm border border-gray-200 max-w-5xl mx-auto">
       <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Gestión de Clientes</h2>
 
-      {/* Controles de Filtro y Exportación */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div className="flex bg-gray-100 p-1 rounded-lg w-full sm:w-auto">
           <button
@@ -296,7 +303,6 @@ function ClientesView() {
         </button>
       </div>
 
-      {/* Buscador */}
       <div className="mb-6">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -310,7 +316,6 @@ function ClientesView() {
         </div>
       </div>
 
-      {/* Resumen dinámico */}
       <div className={`p-4 rounded-xl mb-6 border-2 ${filtro === 'deudores' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
         <p className="text-lg text-gray-700">
           {filtro === 'deudores' ? 'Deuda total pendiente:' : 'Total de clientes registrados:'}
@@ -336,16 +341,12 @@ function ClientesView() {
             
             return (
               <div key={cliente.id} className="bg-white rounded-2xl shadow-md border border-gray-200 transition-all duration-300 hover:shadow-lg overflow-visible">
-                {/* Header del cliente */}
                 <div className="p-4 bg-gradient-to-br from-gray-50 to-white">
-                  
-                  {/* FILA SUPERIOR: Nombre + Menú (3 puntos) */}
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="text-base font-bold text-gray-900 truncate flex-1 pr-2">
                       {cliente.nombre || 'Sin nombre'}
                     </h3>
                     
-                    {/* Menú de 3 puntos - SIEMPRE VISIBLE ARRIBA */}
                     <div className="relative z-50">
                       <button
                         onClick={() => setOpenMenu(openMenu === cliente.id ? null : cliente.id)}
@@ -354,7 +355,6 @@ function ClientesView() {
                         <MoreVertical className="w-5 h-5" />
                       </button>
                       
-                      {/* Menú Desplegable */}
                       {openMenu === cliente.id && (
                         <>
                           <div 
@@ -384,7 +384,6 @@ function ClientesView() {
                               </div>
                               
                             </button>
-                                                        {/* EDITAR DATOS DEL CLIENTE */}
                             <button
                               onClick={() => { handleEditarCliente(cliente); setOpenMenu(null); }}
                               className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-3 border-b border-gray-100 transition active:bg-blue-100"
@@ -423,7 +422,6 @@ function ClientesView() {
                     </div>
                   </div>
 
-                  {/* FILA 2: Teléfono + Badge de estado */}
                   <div className="flex justify-between items-center mb-3">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <Phone className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
@@ -441,12 +439,10 @@ function ClientesView() {
                     )}
                   </div>
 
-                  {/* FILA 3: Última compra (sin monto grande) */}
                   <p className="text-xs text-gray-500 mb-3">
                     Última compra: {cliente.ultima_compra ? new Date(cliente.ultima_compra).toLocaleDateString('es-AR') : 'Nunca'}
                   </p>
 
-                  {/* FILA 4: Botones de acción (SOLO 2 BOTONES) */}
                   {tieneDeuda && (
                     <div className="flex gap-2">
                       <button
@@ -469,7 +465,6 @@ function ClientesView() {
                     </div>
                   )}
                   
-                  {/* Si no tiene deuda, solo mostramos el botón de WhatsApp */}
                   {!tieneDeuda && (
                     <button
                       onClick={() => handleWhatsApp(cliente)}
@@ -482,7 +477,6 @@ function ClientesView() {
                   )}
                 </div>
 
-                {/* Detalle de ventas pendientes (expandible) */}
                 {expandedClient === cliente.id && (
                   <div className="p-4 border-t border-gray-200 bg-gray-50">
                     <div className="flex justify-between items-center mb-3">
@@ -516,17 +510,35 @@ function ClientesView() {
                             {venta.productos.length > 0 && (
                               <div className="p-3 bg-gray-100 border-t border-gray-200">
                                 <p className="text-xs font-semibold text-gray-600 mb-2">Productos:</p>
-                                <div className="space-y-1">
-                                  {venta.productos.map((prod, idx) => (
-                                    <p key={idx} className="text-xs text-gray-700 flex justify-between items-center">
-                                      <span className="flex-1">
-                                        {prod.cantidad}x {prod.productos?.nombre || 'Producto eliminado'}
-                                        {prod.productos?.talle && ` - Talle ${prod.productos.talle}`}
-                                        {prod.productos?.color && ` - ${prod.productos.color}`}
-                                      </span>
-                                      <span className="text-gray-600 font-medium">${Number(prod.precio_unitario * prod.cantidad).toFixed(2)}</span>
-                                    </p>
-                                  ))}
+                                <div className="space-y-2">
+                                  {venta.productos.map((prod, idx) => {
+                                    const { talle, color } = getVarianteInfo(prod)
+                                    return (
+                                      <div key={idx} className="text-xs text-gray-700 flex justify-between items-start gap-2">
+                                        <div className="flex-1 min-w-0">
+                                          <p className="font-semibold">
+                                            {prod.cantidad}x {prod.productos?.nombre || 'Producto eliminado'}
+                                          </p>
+                                          {(talle || color) && (
+                                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                              <span className="text-[10px] text-gray-500">📏</span>
+                                              {talle && (
+                                                <span className="bg-gray-200 px-1.5 py-0.5 rounded text-[10px] font-semibold text-gray-700">
+                                                  Talle {talle}
+                                                </span>
+                                              )}
+                                              {color && (
+                                                <span className="bg-purple-100 px-1.5 py-0.5 rounded text-[10px] font-semibold text-purple-700">
+                                                  {color}
+                                                </span>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <span className="text-gray-600 font-medium whitespace-nowrap">${Number(prod.precio_unitario * prod.cantidad).toFixed(2)}</span>
+                                      </div>
+                                    )
+                                  })}
                                 </div>
                               </div>
                             )}

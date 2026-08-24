@@ -5,6 +5,14 @@ import Swal from 'sweetalert2'
 
 const TALLES_SUGERIDOS = ['S', 'M', 'L', 'XL', 'XXL']
 
+// ✅ Normaliza: "negro" → "Negro", " GRIS " → "Gris"
+const normalizar = (str) => {
+  if (!str) return null
+  const limpio = str.trim()
+  if (!limpio) return null
+  return limpio.charAt(0).toUpperCase() + limpio.slice(1).toLowerCase()
+}
+
 function VariantManager({ productoId, onDraftChange }) {
   const [variantes, setVariantes] = useState([])
   const [loading, setLoading] = useState(!!productoId)
@@ -25,12 +33,12 @@ function VariantManager({ productoId, onDraftChange }) {
     if (productoId) fetchVariantes()
   }, [productoId])
 
-  // ✅ Sincroniza los campos legacy del producto (no rompe Dashboard/web/ventas)
+  // Sincroniza los campos legacy del producto (normalizado también)
   const syncLegacy = (lista) => {
     if (!productoId) return
     const legacy = {
-      talle: [...new Set(lista.map(v => v.talle).filter(Boolean))].join(', '),
-      color: [...new Set(lista.map(v => v.color).filter(Boolean))].join(', '),
+      talle: [...new Set(lista.map(v => v.talle).filter(Boolean))].sort().join(', '),
+      color: [...new Set(lista.map(v => v.color).filter(Boolean))].sort().join(', '),
       stock: lista.reduce((s, v) => s + (Number(v.stock) || 0), 0)
     }
     updateProducto(productoId, legacy).catch(() => {})
@@ -43,13 +51,17 @@ function VariantManager({ productoId, onDraftChange }) {
   }
 
   const handleAdd = async () => {
-    if (!form.talle && !form.color) {
+    // ✅ Normalización al guardar (raíz)
+    const talle = form.talle ? form.talle.trim().toUpperCase() : null
+    const color = normalizar(form.color)
+    
+    if (!talle && !color) {
       Swal.fire('Faltan datos', 'Ingresá al menos un talle o un color', 'warning')
       return
     }
     const nueva = {
-      talle: form.talle || null,
-      color: form.color || null,
+      talle,
+      color,
       stock: parseInt(form.stock) || 0,
       precio: form.precio ? parseFloat(form.precio) : null
     }
@@ -64,7 +76,12 @@ function VariantManager({ productoId, onDraftChange }) {
         return
       }
     } else {
-      if (variantes.some(v => v.talle === nueva.talle && v.color === nueva.color)) {
+      // ✅ Verificación de duplicado case-insensitive
+      const existe = variantes.some(v =>
+        (v.talle || '').toUpperCase() === (talle || '').toUpperCase() &&
+        (v.color || '').toLowerCase() === (color || '').toLowerCase()
+      )
+      if (existe) {
         Swal.fire('Variante duplicada', 'Ese talle y color ya están en la lista', 'warning')
         return
       }
@@ -142,7 +159,6 @@ function VariantManager({ productoId, onDraftChange }) {
                 </div>
       )}
 
-      {/* ✅ div en vez de form (evita form anidado) */}
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="text-xs font-bold text-gray-600">Talle</label>

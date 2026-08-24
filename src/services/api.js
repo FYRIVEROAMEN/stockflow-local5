@@ -278,7 +278,7 @@ export const getVentasPendientesCliente = async (clienteId) => {
       
       const { data: detalleVentas } = await supabase
         .from('detalle_ventas')
-        .select('cantidad, precio_unitario, productos(nombre, talle, color)')
+                .select('cantidad, precio_unitario, variante_id, variantes(talle, color), productos(nombre, talle, color)')
         .eq('venta_id', venta.id)
       
       const totalPagado = (pagos || []).reduce((sum, p) => sum + Number(p.monto), 0)
@@ -483,6 +483,24 @@ export const deleteGasto = async (id) => {
 
   if (error) throw error
   return { data }
+}
+
+
+// Categorías existentes del local (para autocomplete)
+export const getCategoriasApp = async () => {
+  const { data, error } = await supabase
+    .from('productos')
+    .select('categoria')
+    .eq('local_id', LOCAL_ID)
+  if (error) throw error
+  const map = new Map()
+  for (const p of data || []) {
+    const raw = (p.categoria || '').trim()
+    if (!raw) continue
+    const key = raw.toLowerCase()
+    if (!map.has(key)) map.set(key, raw)
+  }
+  return { data: [...map.values()] }
 }
 
 export default api
