@@ -1,21 +1,30 @@
 import axios from 'axios'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from './authService'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 const LOCAL_ID = import.meta.env.VITE_LOCAL_ID || 1
 
+// Crear instancia de axios
 const api = axios.create({
   baseURL: `${SUPABASE_URL}/rest/v1`,
   headers: {
     'apikey': SUPABASE_KEY,
-    'Authorization': `Bearer ${SUPABASE_KEY}`,
     'Content-Type': 'application/json',
     'Prefer': 'return=representation'
   }
 })
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+// Interceptor: inyectar token de la sesión en cada request
+api.interceptors.request.use(async (config) => {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session?.access_token) {
+    config.headers.Authorization = `Bearer ${session.access_token}`
+  } else {
+    config.headers.Authorization = `Bearer ${SUPABASE_KEY}`
+  }
+  return config
+})
 
 // ==========================================
 // PRODUCTOS

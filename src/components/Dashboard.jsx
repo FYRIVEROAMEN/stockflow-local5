@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 // ✅ NUEVO: agregado Globe
-import { Package, Plus, Edit2, Trash2, LogOut, Search, AlertTriangle, ShoppingCart, BarChart3, RotateCcw, ChevronUp, Globe, DollarSign } from 'lucide-react'
+import { Package, Plus, Edit2, Trash2, LogOut, Search, AlertTriangle, ShoppingCart, BarChart3, RotateCcw, ChevronUp, Globe, DollarSign, User } from 'lucide-react'
 // ✅ NUEVO: agregado enviarAWeb, quitarDeWeb
 import { getProductosActivos, deactivateProducto, reactivateProducto, getProductosInactivos, enviarAWeb, quitarDeWeb } from '../services/api'
 
@@ -14,6 +14,7 @@ import Swal from 'sweetalert2'
 import MetricsView from './MetricsView'
 import ClientesView from './ClientesView'
 import GastosView from './GastosView'
+import ProfileView from './ProfileView'
 
 function Dashboard({ onLogout }) {
   const [productos, setProductos] = useState([])
@@ -298,6 +299,9 @@ function Dashboard({ onLogout }) {
           </button>
           <button onClick={() => setCurrentView('gastos')} className={`tab-btn ${currentView === 'gastos' ? 'active' : ''}`}>
             <DollarSign className="w-6 h-6" /> Gastos
+          </button>
+          <button onClick={() => setCurrentView('profile')} className={`tab-btn ${currentView === 'profile' ? 'active' : ''}`}>
+            <User className="w-6 h-6" /> Mi cuenta
           </button>
         </div>
 
@@ -667,8 +671,10 @@ function Dashboard({ onLogout }) {
           <ClientesView />
         ) : currentView === 'metrics' ? (
           <MetricsView onNavigate={setCurrentView} />
-        ) : currentView === 'gastos' ? (
+         ) : currentView === 'gastos' ? (
           <GastosView />
+        ) : currentView === 'profile' ? (
+          <ProfileView />
         ) : null}
       </main>
 
@@ -698,8 +704,18 @@ function Dashboard({ onLogout }) {
           <span>Más</span>
         </button>
 
-        {showMoreMenu && (
+                {showMoreMenu && (
           <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
+            <button
+              onClick={() => { setCurrentView('profile'); setShowMoreMenu(false); }}
+              className="w-full text-left px-5 py-4 text-gray-700 hover:bg-blue-50 flex items-center gap-3 border-b border-gray-100"
+            >
+              <User className="w-6 h-6 text-blue-600" />
+              <div>
+                <p className="font-semibold">Mi cuenta</p>
+                <p className="text-xs text-gray-500">Perfil, web y contraseña</p>
+              </div>
+            </button>
             <button 
               onClick={() => { setCurrentView('clientes'); setShowMoreMenu(false); }}
               className="w-full text-left px-5 py-4 text-gray-700 hover:bg-blue-50 flex items-center gap-3 border-b border-gray-100"

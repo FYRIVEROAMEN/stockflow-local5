@@ -1,33 +1,40 @@
-import { useState } from 'react'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
+import { AuthProvider, useAuth } from './context/AuthContext'
+import { logout as authLogout } from './services/authService'
 
+// Componente interno: YA está dentro del AuthProvider
+function AppInner() {
+  const { session, loading } = useAuth()
 
-
-
-function App() {
-  // Inicializamos el estado leyendo desde sessionStorage
-  const [isLogged, setIsLogged] = useState(() => {
-    return sessionStorage.getItem('isLogged') === 'true'
-  })
-
-  // Función para hacer login (guarda en sessionStorage)
-  const handleLogin = () => {
-    setIsLogged(true)
-    sessionStorage.setItem('isLogged', 'true')
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-gray-600">Cargando...</div>
+      </div>
+    )
   }
 
-  // Función para hacer logout (limpia sessionStorage)
-  const handleLogout = () => {
-    setIsLogged(false)
-    sessionStorage.removeItem('isLogged')
+  const handleLogout = async () => {
+    try {
+      await authLogout()
+    } catch (err) {
+      console.error('Error al cerrar sesión:', err)
+    }
   }
 
-  if (!isLogged) {
-    return <Login onLogin={handleLogin} />
+  if (!session) {
+    return <Login />
   }
 
   return <Dashboard onLogout={handleLogout} />
 }
 
-export default App
+// Export: envuelve todo con el provider (no hay que tocar main.jsx)
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppInner />
+    </AuthProvider>
+  )
+}
