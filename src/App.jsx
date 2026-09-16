@@ -1,11 +1,12 @@
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
+import CrearLocal from './components/CrearLocal'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { logout as authLogout } from './services/authService'
 
 // Componente interno: YA está dentro del AuthProvider
 function AppInner() {
-  const { session, loading } = useAuth()
+  const { session, profile, loading } = useAuth()
 
   if (loading) {
     return (
@@ -25,6 +26,34 @@ function AppInner() {
 
   if (!session) {
     return <Login />
+  }
+
+  // 🏢 G2: sesión SIN local (profile inexistente o sin local_id)
+  // → onboarding de creación: la fábrica estrena dueño
+  if (!profile?.local_id) {
+    return <CrearLocal />
+  }
+
+  // 🔒 Sesión CON local pero sin sombrero de dueño
+  // (ej: un customer de alguna tienda que abrió la gestión)
+  if (profile.rol !== 'owner') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center bg-white rounded-2xl shadow-lg p-8 max-w-sm">
+          <p className="text-2xl mb-3">🔒</p>
+          <p className="text-gray-700 font-semibold mb-1">Pantalla solo para dueños</p>
+          <p className="text-gray-500 text-sm mb-5">
+            Tu cuenta es de cliente. Para comprar, entrá a la tienda que te invitó.
+          </p>
+          <button
+            onClick={handleLogout}
+            className="bg-gray-800 text-white rounded-lg px-4 py-2 text-sm font-medium"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return <Dashboard onLogout={handleLogout} />

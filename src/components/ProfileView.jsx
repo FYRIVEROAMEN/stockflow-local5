@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { User, Globe, KeyRound } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { cambiarPassword, activarWeb, desactivarWeb } from '../services/authService'
+import TarjetaWeb from './TarjetaWeb'
 
 export default function ProfileView() {
   const { session, profile } = useAuth()
@@ -87,6 +88,7 @@ export default function ProfileView() {
         >
           {operando ? 'Procesando...' : webActiva ? 'Desactivar web' : '🚀 Dar de alta mi web'}
         </button>
+           <TarjetaWeb />
       </div>
 
       {/* CONTRASEÑA */}

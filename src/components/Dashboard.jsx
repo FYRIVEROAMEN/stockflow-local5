@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 // ✅ NUEVO: agregado Globe
-import { Package, Plus, Edit2, Trash2, LogOut, Search, AlertTriangle, ShoppingCart, BarChart3, RotateCcw, ChevronUp, Globe, DollarSign, User } from 'lucide-react'
+import { Package, Plus, Edit2, Trash2, LogOut, Search, AlertTriangle, ShoppingCart, BarChart3, RotateCcw, ChevronUp, Globe, DollarSign, User, ShoppingBag } from 'lucide-react'
 // ✅ NUEVO: agregado enviarAWeb, quitarDeWeb
-import { getProductosActivos, deactivateProducto, reactivateProducto, getProductosInactivos, enviarAWeb, quitarDeWeb } from '../services/api'
+import { getProductosActivos, deactivateProducto, reactivateProducto, getProductosInactivos, enviarAWeb, quitarDeWeb, getPedidosWeb } from '../services/api'
+
+import PedidosWebView from './PedidosWebView'
 
 
 
@@ -33,6 +35,17 @@ function Dashboard({ onLogout }) {
   const [cantidadVisible, setCantidadVisible] = useState(12)
   const [showScrollTop, setShowScrollTop] = useState(false)
   const PASO = 12
+  const [pedidosCount, setPedidosCount] = useState(0)
+
+  const fetchPedidosCount = useCallback(async () => {
+    try {
+      const { data } = await getPedidosWeb()
+      setPedidosCount((data || []).filter(p => p.estado === 'recibido').length)
+    } catch (err) { /* sin pedidos aún */ }
+  }, [])
+
+  useEffect(() => { fetchPedidosCount() }, [fetchPedidosCount, currentView])
+
 
   const fetchProductos = useCallback(async () => {
     setLoading(true)
@@ -257,7 +270,7 @@ function Dashboard({ onLogout }) {
               <Package className="w-4 h-4 md:w-5 md:h-5 text-white" />
             </div>
             <span className="text-lg md:text-xl font-bold">
-              Stock<span className="text-blue-600">Flow</span>
+              Stock<span className="text-blue-600">Shop</span>
             </span>
           </h1>
           <button onClick={onLogout} className="btn btn-secondary touch-target">
@@ -285,6 +298,19 @@ function Dashboard({ onLogout }) {
           <button onClick={() => setCurrentView('history')} className={`tab-btn ${currentView === 'history' ? 'active' : ''}`}>
             <BarChart3 className="w-6 h-6" /> Historial
           </button>
+
+          <button onClick={() => setCurrentView('pedidos')} className={`tab-btn ${currentView === 'pedidos' ? 'active' : ''}`}>
+            <div className="flex items-center gap-1">
+              <ShoppingBag className="w-6 h-6" />
+              {pedidosCount > 0 && (
+                <span className="bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                  {pedidosCount}
+                </span>
+              )}
+            </div>
+            <span className="ml-1">Pedidos</span>
+          </button>
+
           <button onClick={() => setCurrentView('clientes')} className={`tab-btn ${currentView === 'clientes' ? 'active' : ''}`}>
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -673,6 +699,8 @@ function Dashboard({ onLogout }) {
           <MetricsView onNavigate={setCurrentView} />
          ) : currentView === 'gastos' ? (
           <GastosView />
+          ) : currentView === 'pedidos' ? (
+          <PedidosWebView onCambios={fetchPedidosCount} />
         ) : currentView === 'profile' ? (
           <ProfileView />
         ) : null}
@@ -739,6 +767,19 @@ function Dashboard({ onLogout }) {
     <p className="text-xs text-gray-500">Egresos del local</p>
   </div>
 </button>
+
+
+
+ <button
+              onClick={() => { setCurrentView('pedidos'); setShowMoreMenu(false); }}
+              className="w-full text-left px-5 py-4 text-gray-700 hover:bg-blue-50 flex items-center gap-3 border-b border-gray-100"
+            >
+              <ShoppingBag className="w-6 h-6 text-red-600" />
+              <div>
+                <p className="font-semibold">Pedidos web</p>
+                <p className="text-xs text-gray-500">Compras de tu vidriera</p>
+              </div>
+            </button>
 
             <button 
               onClick={() => { setCurrentView('metrics'); setShowMoreMenu(false); }}

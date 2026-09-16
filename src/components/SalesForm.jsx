@@ -64,7 +64,7 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
   const [showClientData, setShowClientData] = useState(false)
   const [showDiscount, setShowDiscount] = useState(false)
   
-  const [firstUse, setFirstUse] = useState(() => JSON.parse(localStorage.getItem('stockflow_first_use') || 'true'))
+  const [firstUse, setFirstUse] = useState(() => JSON.parse(localStorage.getItem('stockShop_first_use') || 'true'))
   const [showScanTooltip, setShowScanTooltip] = useState(false)
   const [showDiscountTooltip, setShowDiscountTooltip] = useState(false)
   
@@ -79,7 +79,7 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
   const montoInputRef = useRef(null)
 
   useEffect(() => {
-    localStorage.setItem('stockflow_first_use', JSON.stringify(firstUse))
+    localStorage.setItem('stockShop_first_use', JSON.stringify(firstUse))
     if (firstUse) {
       setTimeout(() => setShowScanTooltip(true), 2000)
       setTimeout(() => setShowDiscountTooltip(true), 5000)

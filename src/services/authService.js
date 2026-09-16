@@ -88,3 +88,9 @@ export const cambiarPassword = async (nuevaPassword) => {
   })
   if (error) throw error
 }
+
+// 🏢 MULTITENANT: LOCAL_ID vive en la sesión, no en el .env
+export let LOCAL_ID = null
+export function setLocalId(id) {
+  LOCAL_ID = id ? Number(id) : null
+}

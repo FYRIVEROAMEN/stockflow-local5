@@ -3,7 +3,7 @@ import { supabase } from './authService'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-const LOCAL_ID = import.meta.env.VITE_LOCAL_ID || 1
+import { LOCAL_ID } from './authService'
 
 // Crear instancia de axios
 const api = axios.create({
@@ -511,5 +511,22 @@ export const getCategoriasApp = async () => {
   }
   return { data: [...map.values()] }
 }
+
+
+// ---------- PEDIDOS WEB (gestión) ----------
+export const getPedidosWeb = async () => {
+  const { data, error } = await supabase.rpc('pedidos_web_con_cliente')
+  if (error) throw error
+  return { data: data || [] }
+}
+
+export const actualizarEstadoPedidoWeb = async (pedidoId, estado) => {
+  const { error } = await supabase.rpc('actualizar_estado_pedido_web', {
+    p_pedido_id: pedidoId,
+    p_estado: estado
+  })
+  if (error) throw error
+}
+
 
 export default api
