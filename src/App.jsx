@@ -1,8 +1,25 @@
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import CrearLocal from './components/CrearLocal'
+import Landing from './components/Landing'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { logout as authLogout } from './services/authService'
+
+// 🌐 Portal TiDix: ¿mostrar la landing de marketing?
+function esRaizMarketing() {
+  if (typeof window === 'undefined') return false
+  const host = window.location.hostname
+  const path = window.location.pathname
+  const params = new URLSearchParams(window.location.search)
+
+  // 🧪 OVERRIDE DE DEV: ?marketing=1 fuerza la landing
+  if (params.get('marketing') === '1') return true
+
+  const esApex = host === 'stockshop.com.ar' || host === 'www.stockshop.com.ar'
+  const esRaiz = path === '/' || path === ''
+  const sinSalir = !window.location.search.includes('salir=1')
+  return esApex && esRaiz && sinSalir
+}
 
 // Componente interno: YA está dentro del AuthProvider
 function AppInner() {
@@ -19,9 +36,16 @@ function AppInner() {
   const handleLogout = async () => {
     try {
       await authLogout()
+      // Al salir marcamos que venimos de logout para no mostrar landing
+      window.location.href = '/?salir=1'
     } catch (err) {
       console.error('Error al cerrar sesión:', err)
     }
+  }
+
+  // 🎯 Landing de marketing (ANTES de todo lo demás)
+  if (!session && esRaizMarketing()) {
+    return <Landing />
   }
 
   if (!session) {
