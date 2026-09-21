@@ -1,7 +1,7 @@
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import CrearLocal from './components/CrearLocal'
-import Landing from './components/Landing'
+import Landing from './components/StockShopLandingV4'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { logout as authLogout } from './services/authService'
 
