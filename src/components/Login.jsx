@@ -94,7 +94,10 @@ function Login() {
       <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-6 sm:p-12 relative">
         
         {/* Botón Volver al inicio */}
-        <a href="/" className="absolute top-6 left-6 sm:top-10 sm:left-10 text-sm text-slate-500 hover:text-[#08285B] flex items-center gap-2 font-semibold transition-colors">
+        <a 
+  href={window.location.hostname.includes('stockshop.com.ar') ? '/' : '/?marketing=1'} 
+  className="absolute top-6 left-6 sm:top-10 sm:left-10 text-sm text-slate-500 hover:text-[#08285B] flex items-center gap-2 font-semibold transition-colors"
+>
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 12H5M12 19l-7-7 7-7"/></svg>
           Volver al inicio
         </a>
