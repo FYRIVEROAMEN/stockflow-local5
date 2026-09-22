@@ -1,7 +1,7 @@
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import CrearLocal from './components/CrearLocal'
-import Landing from './components/StockShopLandingV4'
+import Landing from './components/Landing'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { logout as authLogout } from './services/authService'
 
@@ -24,6 +24,7 @@ function esRaizMarketing() {
 // Componente interno: YA está dentro del AuthProvider
 function AppInner() {
   const { session, profile, loading } = useAuth()
+  const path = window.location.pathname
 
   if (loading) {
     return (
@@ -43,17 +44,28 @@ function AppInner() {
     }
   }
 
-  // 🎯 Landing de marketing (ANTES de todo lo demás)
-  if (!session && esRaizMarketing()) {
-    return <Landing />
-  }
-
+  // ─────────────────────────────────────────────
+  // 🔓 SIN SESIÓN: decidimos por host + path
+  // ─────────────────────────────────────────────
   if (!session) {
+    // 🎨 Landing de marketing (apex/www en la raíz)
+    if (esRaizMarketing()) {
+      return <Landing />
+    }
+    // 🔑 Todo lo demás: /login, /crear-cuenta, cualquier ruta
+    //    (en /crear-cuenta el usuario se registra y al tener
+    //     sesión nueva SIN local_id, el bloque G2 de abajo
+    //     lo mete directo al onboarding CrearLocal ✔)
     return <Login />
   }
 
+  // ─────────────────────────────────────────────
+  // 🔐 CON SESIÓN
+  // ─────────────────────────────────────────────
+
   // 🏢 G2: sesión SIN local (profile inexistente o sin local_id)
   // → onboarding de creación: la fábrica estrena dueño
+  // → acá aterrizan los registros nuevos que entraron por /crear-cuenta
   if (!profile?.local_id) {
     return <CrearLocal />
   }
@@ -80,6 +92,7 @@ function AppInner() {
     )
   }
 
+  // 🏭 Dueño con local: la fábrica
   return <Dashboard onLogout={handleLogout} />
 }
 

@@ -25,7 +25,7 @@ const StorePreview = ({kind,label}) => (
   </motion.div>
 );
 
-const Plan = ({name,desc,price,featured,children,icon}) => (
+const Plan = ({name,desc,price,featured,children,icon,onSelect}) => (
   <motion.div 
     whileHover={{ y: -8 }}
     transition={{ duration: 0.3 }}
@@ -43,13 +43,27 @@ const Plan = ({name,desc,price,featured,children,icon}) => (
       <b className="text-xl sm:text-2xl text-[#08285B]">{price}</b><span className="text-[10px] text-slate-400"> /mes</span>
     </div>
     <ul className="space-y-2.5 sm:space-y-3 mb-6 sm:mb-8">{children}</ul>
-    <button className={`w-full py-2.5 sm:py-3 rounded-xl font-bold text-xs transition-colors ${featured?'bg-[#3882F6] hover:bg-blue-700 text-white':'border border-slate-300 text-[#08285B] hover:bg-slate-50'}`}>Elegir plan</button>
+    <button 
+      onClick={onSelect}
+      className={`w-full py-2.5 sm:py-3 rounded-xl font-bold text-xs transition-colors ${featured?'bg-[#3882F6] hover:bg-blue-700 text-white':'border border-slate-300 text-[#08285B] hover:bg-slate-50'}`}
+    >
+      Elegir plan
+    </button>
   </motion.div>
 );
 
 const Item = ({children}) => <li className="flex items-center gap-2 text-xs text-slate-600"><span className="text-[#3882F6]"><Check/></span>{children}</li>;
 
-export default function StockShopClone() {
+export default function Landing() {
+  // 🎯 HANDLERS DE NAVEGACIÓN
+  const handleIngresar = () => {
+    window.location.href = '/login'
+  }
+
+  const handleCrearTienda = () => {
+    window.location.href = '/crear-cuenta'
+  }
+
   return (
     <div className="min-h-screen bg-white text-slate-800 font-sans overflow-x-hidden">
       
@@ -60,7 +74,7 @@ export default function StockShopClone() {
         transition={{ duration: 0.5 }}
         className="max-w-7xl mx-auto px-4 sm:px-8 py-3.5 sm:py-5 flex items-center justify-between relative z-50 bg-white/95 backdrop-blur"
       >
-        <a href="#" className="flex items-center gap-2">
+        <a href="/" className="flex items-center gap-2">
           <img src="/MateLogo.png" alt="Logo StockShop" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" />
           <b className="text-lg sm:text-[1.65rem] tracking-tight text-[#08285B]">Stock<span className="text-[#3882F6]">Shop</span></b>
           <span className="hidden sm:block mt-1">🇦🇷</span>
@@ -72,10 +86,16 @@ export default function StockShopClone() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
-          <button className="text-[#08285B] font-bold text-xs sm:text-sm px-2 py-1.5 hover:opacity-80 transition-opacity">
+          <button 
+            onClick={handleIngresar}
+            className="text-[#08285B] font-bold text-xs sm:text-sm px-2 py-1.5 hover:opacity-80 transition-opacity"
+          >
             Ingresar
           </button>
-          <button className="bg-[#D98C4F] hover:bg-[#c67a3d] text-white font-bold px-3.5 py-2 sm:px-5 sm:py-2.5 rounded-xl text-xs sm:text-sm transition-colors shadow-sm">
+          <button 
+            onClick={handleCrearTienda}
+            className="bg-[#D98C4F] hover:bg-[#c67a3d] text-white font-bold px-3.5 py-2 sm:px-5 sm:py-2.5 rounded-xl text-xs sm:text-sm transition-colors shadow-sm"
+          >
             Crear tienda
           </button>
         </div>
@@ -106,6 +126,7 @@ export default function StockShopClone() {
             
             <div className="mt-6 sm:mt-7 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
               <motion.button 
+                onClick={handleCrearTienda}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#D98C4F] hover:bg-[#c67a3d] text-white font-black px-7 py-3.5 sm:py-4 rounded-xl text-sm sm:text-base shadow-[0_12px_30px_rgba(217,140,79,.24)]"
@@ -208,7 +229,7 @@ export default function StockShopClone() {
         </div>
       </section>
 
-      {/* 6. PLANES (🔥 RESTAURADO: CARRUSEL HORIZONTAL FLUIDO EN MOBILE / GRID EN DESKTOP) */}
+      {/* 6. PLANES */}
       <section id="planes" className="py-12 sm:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <h2 className="text-2xl sm:text-3xl font-black text-[#08285B] mb-8 text-center lg:text-left">
@@ -219,15 +240,15 @@ export default function StockShopClone() {
             className="flex lg:grid lg:grid-cols-3 gap-4 sm:gap-6 overflow-x-auto pb-6 pt-2 px-2 snap-x snap-mandatory scroll-smooth"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            <Plan name="Gestión" desc="Para ordenar tu negocio" price="$9.900" icon={<Store className="w-5 h-5"/>}>
+            <Plan name="Gestión" desc="Para ordenar tu negocio" price="$9.900" icon={<Store className="w-5 h-5"/>} onSelect={handleCrearTienda}>
               <Item>Ventas y caja</Item><Item>Stock y alertas</Item><Item>Clientes</Item>
             </Plan>
             
-            <Plan name="Todo en Uno" desc="Negocio + tienda conectados" price="$19.500" featured icon={<Store className="w-5 h-5"/>}>
+            <Plan name="Todo en Uno" desc="Negocio + tienda conectados" price="$19.500" featured icon={<Store className="w-5 h-5"/>} onSelect={handleCrearTienda}>
               <Item>Gestión completa</Item><Item>Tienda online</Item><Item>Stock conectado</Item>
             </Plan>
             
-            <Plan name="Tienda" desc="Para vender por internet" price="$12.500" icon={<Globe className="w-5 h-5"/>}>
+            <Plan name="Tienda" desc="Para vender por internet" price="$12.500" icon={<Globe className="w-5 h-5"/>} onSelect={handleCrearTienda}>
               <Item>Tienda online</Item><Item>Catálogo</Item><Item>Pedidos</Item>
             </Plan>
           </div>
@@ -251,6 +272,7 @@ export default function StockShopClone() {
             </h2>
             <p className="text-xs sm:text-sm text-blue-100 mt-2">Ordená tu negocio, creá tu tienda y gestioná todo desde un solo lugar.</p>
             <motion.button 
+              onClick={handleCrearTienda}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="mt-5 bg-[#D98C4F] hover:bg-[#c67a3d] text-white font-black px-6 sm:px-8 py-3 rounded-xl text-xs sm:text-sm shadow-md"
