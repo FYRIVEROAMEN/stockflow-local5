@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion'; // 🪄 La magia de las animaciones
+import { motion } from 'framer-motion';
 
 // 🐵 ÍCONOS Y COMPONENTES VISUALES
 const Check = () => <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M5 13l4 4L19 7"/></svg>;
@@ -9,13 +9,9 @@ const Box = ({className='w-6 h-6 sm:w-7 sm:h-7'}) => <svg className={className} 
 const Globe = ({className='w-6 h-6 sm:w-7 sm:h-7'}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9" strokeWidth="1.8"/><path strokeWidth="1.8" strokeLinecap="round" d="M3 12h18M12 3c2.2 2.5 3.2 5.5 3.2 9S14.2 18.5 12 21M12 3C9.8 5.5 8.8 8.5 8.8 12s1 6.5 3.2 9"/></svg>;
 const Trend = ({className='w-6 h-6 sm:w-7 sm:h-7'}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.9" d="M3 17 9 11l4 4 7-8M14 7h6v6"/></svg>;
 const Wpp = () => <svg className="w-6 h-6 sm:w-7 sm:h-7 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>;
-const Flag = ({className='w-10 h-6 sm:w-12 sm:h-7'}) => <svg className={className} viewBox="0 0 140 80"><path d="M6 14c22-12 42-5 64 4 23 9 42 14 64 3v42c-22 11-41 5-64-4C48 50 28 44 6 57V14Z" fill="white"/><path d="M6 14c22-12 42-5 64 4 23 9 42 14 64 3V8C112 19 93 14 70 5 48-4 28-8 6 4v10Z" fill="#78AEEA"/><path d="M6 57c22-13 42-7 64 2 23 9 42 15 64 4v13c-22 11-41 5-64-4C48 63 28 57 6 70V57Z" fill="#78AEEA"/><circle cx="70" cy="40" r="7" fill="#E9B24C"/></svg>;
 
 const StorePreview = ({kind,label}) => (
-  <motion.div 
-    whileHover={{ y: -5 }}
-    className="min-w-[220px] sm:min-w-[250px] snap-center shrink-0"
-  >
+  <motion.div whileHover={{ y: -5 }} className="min-w-[220px] sm:min-w-[250px] snap-center shrink-0">
     <div className="h-[260px] sm:h-[300px] rounded-[1.5rem] border-[6px] border-slate-900 bg-white shadow-lg overflow-hidden">
       <div className={`h-20 sm:h-24 ${kind==='tech'?'bg-[#08285B]':kind==='mate'?'bg-[#EED6B7]':'bg-[#DCEBD9]'}`}/>
       <div className="p-3 sm:p-4">
@@ -33,7 +29,7 @@ const Plan = ({name,desc,price,featured,children,icon}) => (
   <motion.div 
     whileHover={{ y: -8 }}
     transition={{ duration: 0.3 }}
-    className={`relative min-w-[285px] lg:min-w-0 rounded-2xl bg-white p-5 sm:p-6 shrink-0 ${featured?'border-2 border-[#3882F6] shadow-[0_18px_50px_rgba(56,130,246,.14)]':'border border-slate-200 shadow-sm'}`}
+    className={`relative min-w-[280px] sm:min-w-[310px] lg:min-w-0 snap-center shrink-0 rounded-2xl bg-white p-5 sm:p-6 ${featured?'border-2 border-[#3882F6] shadow-[0_18px_50px_rgba(56,130,246,.14)]':'border border-slate-200 shadow-sm'}`}
   >
     {featured && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#3882F6] text-white text-[9px] font-black uppercase px-3 py-1 rounded-full">Todo en Uno</div>}
     <div className="flex items-center gap-3 mb-4 sm:mb-5">
@@ -89,7 +85,6 @@ export default function StockShopClone() {
       <header className="relative overflow-hidden bg-gradient-to-b from-white to-[#F5F9FE]">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-6 sm:pt-14 pb-12 sm:pb-20 grid lg:grid-cols-2 gap-8 lg:gap-10 items-center">
           
-          {/* Texto del Hero animado al entrar */}
           <motion.div 
             initial={{ opacity: 0, x: -40 }}
             animate={{ opacity: 1, x: 0 }}
@@ -129,7 +124,6 @@ export default function StockShopClone() {
             </div>
           </motion.div>
 
-          {/* Celular animado deslizándose desde la derecha */}
           <motion.div 
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -150,26 +144,26 @@ export default function StockShopClone() {
         </div>
       </header>
 
-      {/* 3. VENDÉ, ORDENÁ, PUBLICÁ (Animado al hacer scroll) */}
+      {/* 3. VENDÉ, ORDENÁ, PUBLICÁ */}
       <motion.section 
-        initial={{ opacity: 0, y: 30 }}
+        initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-        className="border-t border-slate-100"
+        transition={{ duration: 0.5 }}
+        className="border-t border-slate-100 py-10 sm:py-16"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12 sm:py-20 grid lg:grid-cols-[1.05fr_2fr] gap-8 lg:gap-12 items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 grid lg:grid-cols-[1.05fr_2fr] gap-8 lg:gap-12 items-center">
           <div className="text-center lg:text-left">
             <p className="text-[10px] font-black text-[#3882F6] uppercase tracking-[.14em] mb-2">Todo lo que necesitás</p>
             <h2 className="text-2xl sm:text-4xl font-black text-[#08285B]">Vendé · Ordená · Publicá</h2>
-            <p className="text-xs sm:text-base text-slate-500 mt-2 sm:mt-4 max-w-md mx-auto lg:mx-0">Todo lo que necesitás para llevar tu negocio, en un solo lugar.</p>
+            <p className="text-xs sm:text-base text-slate-500 mt-2 max-w-md mx-auto lg:mx-0">Todo lo que necesitás para llevar tu negocio, en un solo lugar.</p>
           </div>
           <div className="grid grid-cols-3 gap-3 sm:gap-8 text-center">
-            {[{i: <Store/>, t: 'Vendé', d: 'En el mostrador\ny online.'}, {i: <Box/>, t: 'Ordená', d: 'Tu stock, caja\ny clientes.'}, {i: <Globe/>, t: 'Publicá', d: 'Tu tienda online\nen minutos.'}].map((item, idx) => (
-              <motion.div key={idx} whileHover={{ scale: 1.08 }} className="flex flex-col items-center">
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#EEF6FF] flex items-center justify-center text-[#3882F6] mb-3 sm:mb-4 shadow-sm">{item.i}</div>
-                <b className="text-sm sm:text-lg text-[#08285B]">{item.t}</b>
-                <p className="text-[11px] sm:text-sm text-slate-500 mt-1 whitespace-pre-line">{item.d}</p>
+            {[{i: <Store/>, t: 'Vendé', d: 'En el mostrador y online.'}, {i: <Box/>, t: 'Ordená', d: 'Tu stock, caja y clientes.'}, {i: <Globe/>, t: 'Publicá', d: 'Tu tienda online en minutos.'}].map((item, idx) => (
+              <motion.div key={idx} whileHover={{ scale: 1.05 }} className="flex flex-col items-center">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[#EEF6FF] flex items-center justify-center text-[#3882F6] mb-2 sm:mb-4 shadow-sm">{item.i}</div>
+                <b className="text-xs sm:text-lg text-[#08285B]">{item.t}</b>
+                <p className="text-[10px] sm:text-sm text-slate-500 mt-0.5">{item.d}</p>
               </motion.div>
             ))}
           </div>
@@ -177,12 +171,12 @@ export default function StockShopClone() {
       </motion.section>
 
       {/* 4. EJEMPLOS DE TIENDA */}
-      <section className="bg-[#F7FAFE] border-y border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12 sm:py-20 grid lg:grid-cols-[1fr_2.4fr] gap-8 lg:gap-10 items-center">
+      <section className="bg-[#F7FAFE] border-y border-slate-100 py-10 sm:py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 grid lg:grid-cols-[1fr_2.4fr] gap-8 lg:gap-10 items-center">
           <div className="text-center lg:text-left">
             <h2 className="text-2xl sm:text-3xl font-black text-[#08285B]">Así puede verse tu tienda</h2>
-            <p className="text-xs sm:text-base text-slate-500 mt-2 sm:mt-4 max-w-sm mx-auto lg:mx-0">Tres ejemplos de cómo podés mostrar tu negocio.</p>
-            <a href="#" className="inline-flex items-center gap-2 mt-4 sm:mt-6 text-xs sm:text-sm font-bold text-[#3882F6] hover:gap-3 transition-all">Ver más ejemplos <Arrow/></a>
+            <p className="text-xs sm:text-base text-slate-500 mt-2 max-w-sm mx-auto lg:mx-0">Tres ejemplos de cómo podés mostrar tu negocio.</p>
+            <a href="#" className="inline-flex items-center gap-2 mt-4 text-xs sm:text-sm font-bold text-[#3882F6] hover:gap-3 transition-all">Ver más ejemplos <Arrow/></a>
           </div>
           <div className="flex gap-4 sm:gap-5 overflow-x-auto pb-3 px-2 snap-x" style={{scrollbarWidth:'none',msOverflowStyle:'none'}}>
             <StorePreview kind="fashion" label="Ropa y accesorios"/>
@@ -193,38 +187,46 @@ export default function StockShopClone() {
       </section>
 
       {/* 5. PASOS */}
-      <section id="como-funciona" className="bg-[#F4F8FD]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12 sm:py-20 grid lg:grid-cols-[1fr_2.3fr] gap-8 lg:gap-10 items-center">
+      <section id="como-funciona" className="bg-[#F4F8FD] py-10 sm:py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 grid lg:grid-cols-[1fr_2.3fr] gap-8 lg:gap-10 items-center">
           <div className="text-center lg:text-left">
             <span className="bg-white border border-[#BFD9FF] text-[#3882F6] text-[10px] font-black uppercase px-3 py-1 rounded-full">Así de simple</span>
-            <h2 className="text-2xl sm:text-4xl font-black text-[#08285B] mt-3 sm:mt-5 leading-tight">De tus productos<br/>a tu tienda</h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-2 sm:mt-4">Sin aprender desarrollo web.</p>
+            <h2 className="text-2xl sm:text-4xl font-black text-[#08285B] mt-3 leading-tight">De tus productos<br/>a tu tienda</h2>
+            <p className="text-xs sm:text-sm text-slate-500 mt-2">Sin aprender desarrollo web.</p>
           </div>
-          <div className="relative grid sm:grid-cols-3 gap-8 sm:gap-4">
-            <div className="hidden sm:block absolute top-[47px] left-[16%] right-[16%] h-px bg-[#CFE1FA]"/>
-            {[{n:'01',t:'Cargá',d:'tus productos',i:<Box/>},{n:'02',t:'Mostrá',d:'cómo querés tu tienda',i:<Store/>},{n:'03',t:'Vendé',d:'y empezá a crecer',i:<Trend/>}].map(s => (
-              <motion.div key={s.n} whileHover={{ y: -5 }} className="relative z-10 flex flex-col items-center text-center bg-[#F4F8FD] px-4">
-                <span className="text-xs font-black text-[#3882F6] mb-2 sm:mb-3">{s.n}</span>
-                <div className="w-14 h-14 sm:w-[72px] sm:h-[72px] rounded-full bg-white border border-[#D8E8FB] shadow-sm flex items-center justify-center text-[#3882F6]">{s.i}</div>
-                <b className="text-sm sm:text-base text-[#08285B] mt-3 sm:mt-4">{s.t}</b>
-                <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">{s.d}</p>
+          
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
+            {[{n:'01',t:'Cargá',d:'tus productos',i:<Box/>},{n:'02',t:'Mostrá',d:'tu tienda',i:<Store/>},{n:'03',t:'Vendé',d:'y crecé',i:<Trend/>}].map(s => (
+              <motion.div key={s.n} whileHover={{ y: -3 }} className="flex flex-col items-center text-center bg-white sm:bg-[#F4F8FD] p-3 sm:px-4 rounded-2xl shadow-sm sm:shadow-none border border-slate-100 sm:border-0">
+                <span className="text-[10px] font-black text-[#3882F6] mb-1">{s.n}</span>
+                <div className="w-10 h-10 sm:w-[60px] sm:h-[60px] rounded-full bg-[#F4F8FD] sm:bg-white border border-[#D8E8FB] flex items-center justify-center text-[#3882F6] shadow-sm">{s.i}</div>
+                <b className="text-xs sm:text-base text-[#08285B] mt-2">{s.t}</b>
+                <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5">{s.d}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* 6. PLANES */}
-      <section id="planes">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12 sm:py-20">
-          <h2 className="text-2xl sm:text-3xl font-black text-[#08285B] mb-6 sm:mb-8 text-center lg:text-left">Elegí cómo querés usar StockShop</h2>
-          <div className="flex lg:grid lg:grid-cols-3 gap-4 sm:gap-5 overflow-x-auto lg:overflow-visible pb-4 px-2 snap-x" style={{scrollbarWidth:'none',msOverflowStyle:'none'}}>
+      {/* 6. PLANES (🔥 RESTAURADO: CARRUSEL HORIZONTAL FLUIDO EN MOBILE / GRID EN DESKTOP) */}
+      <section id="planes" className="py-12 sm:py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
+          <h2 className="text-2xl sm:text-3xl font-black text-[#08285B] mb-8 text-center lg:text-left">
+            Elegí cómo querés usar StockShop
+          </h2>
+          
+          <div 
+            className="flex lg:grid lg:grid-cols-3 gap-4 sm:gap-6 overflow-x-auto pb-6 pt-2 px-2 snap-x snap-mandatory scroll-smooth"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
             <Plan name="Gestión" desc="Para ordenar tu negocio" price="$9.900" icon={<Store className="w-5 h-5"/>}>
               <Item>Ventas y caja</Item><Item>Stock y alertas</Item><Item>Clientes</Item>
             </Plan>
+            
             <Plan name="Todo en Uno" desc="Negocio + tienda conectados" price="$19.500" featured icon={<Store className="w-5 h-5"/>}>
               <Item>Gestión completa</Item><Item>Tienda online</Item><Item>Stock conectado</Item>
             </Plan>
+            
             <Plan name="Tienda" desc="Para vender por internet" price="$12.500" icon={<Globe className="w-5 h-5"/>}>
               <Item>Tienda online</Item><Item>Catálogo</Item><Item>Pedidos</Item>
             </Plan>
@@ -240,23 +242,18 @@ export default function StockShopClone() {
         transition={{ duration: 0.5 }}
         className="max-w-7xl mx-auto px-4 sm:px-8 pb-8 sm:pb-10"
       >
-        <div className="relative overflow-hidden rounded-[1.5rem] sm:rounded-[1.7rem] bg-[#08285B] min-h-[180px] flex items-center justify-center text-center px-4 sm:px-6 py-8 sm:py-10 shadow-lg">
+        <div className="relative overflow-hidden rounded-[1.5rem] sm:rounded-[1.7rem] bg-[#08285B] min-h-[160px] flex items-center justify-center text-center px-4 sm:px-6 py-8 shadow-lg">
           <div className="absolute -right-20 -bottom-32 w-96 h-96 rounded-full border-[55px] border-[#1E5ED5]/20"/>
           <div className="relative z-10 flex flex-col items-center">
             
-            <div className="flex items-center gap-3 mb-3 sm:mb-4">
-              <img src="/MateLogo.png" alt="Mate StockShop" className="w-10 h-10 sm:w-12 sm:h-12 object-contain" />
-              <Flag className="w-10 h-6 sm:w-12 sm:h-7"/>
-            </div>
-            
-            <h2 className="text-lg sm:text-2xl font-black text-white leading-snug">
+            <h2 className="text-xl sm:text-3xl font-black text-white leading-snug">
               Tu negocio no debería<br/>necesitar un manual para funcionar.
             </h2>
-            <p className="text-xs sm:text-sm text-blue-100 mt-2 sm:mt-3">Ordená tu negocio, creá tu tienda y gestioná todo desde un solo lugar.</p>
+            <p className="text-xs sm:text-sm text-blue-100 mt-2">Ordená tu negocio, creá tu tienda y gestioná todo desde un solo lugar.</p>
             <motion.button 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="mt-5 sm:mt-6 bg-[#D98C4F] hover:bg-[#c67a3d] text-white font-black px-6 sm:px-7 py-3 rounded-xl text-xs sm:text-sm shadow-md"
+              className="mt-5 bg-[#D98C4F] hover:bg-[#c67a3d] text-white font-black px-6 sm:px-8 py-3 rounded-xl text-xs sm:text-sm shadow-md"
             >
               Empezar gratis
             </motion.button>
