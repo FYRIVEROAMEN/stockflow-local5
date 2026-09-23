@@ -88,6 +88,23 @@ export default function PedidosWebView({ onCambios }) {
         </h2>
       </div>
 
+
+            {/* 🔔 Banner de pedidos esperando aprobación */}
+      {count('recibido') > 0 && (
+        <div className="bg-amber-50 border-2 border-amber-200 p-3 rounded-lg mb-4 flex items-center gap-3 animate-pulse">
+          <ShoppingBag className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          <p className="text-amber-800 font-semibold text-sm">
+            {count('recibido')} pedido(s) esperando tu aprobación
+          </p>
+          <button
+            onClick={() => setFiltro('recibido')}
+            className="ml-auto text-xs font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-full transition"
+          >
+            Ver ahora →
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2 mb-5">
         {['recibido', 'confirmado', 'enviado', 'entregado', 'cancelado', 'todos'].map(e => (
           <button

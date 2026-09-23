@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, Plus, Trash2, ShoppingCart, Minus, X, Barcode, User, Phone, DollarSign, Tag, ChevronDown, ChevronUp } from 'lucide-react'
+// En SalesForm.jsx, arriba con los imports:
 import { 
   updateProducto, 
   createVenta, 
@@ -11,6 +12,7 @@ import {
   getVariantes,
   descontarStockVariante
 } from '../services/api'
+import { LOCAL_ID } from '../services/authService'
 import Swal from 'sweetalert2'
 import { BrowserMultiFormatReader } from '@zxing/library'
 
@@ -277,11 +279,12 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
     triggerHaptic(50)
     
     try {
-      const LOCAL_ID = import.meta.env.VITE_LOCAL_ID || 1
+      
       const { data: ventaData, error: ventaError } = await createVenta({ 
         total_bruto: totalBruto, descuento_monto: descuentoMonto, 
         descuento_motivo: aplicarDescuento ? motivoDescuento : 'Sin descuento', 
-        total_neto: totalNeto, local_id: LOCAL_ID 
+        total_neto: totalNeto, local_id: LOCAL_ID, 
+        origen: 'mostrador' 
       })
       if (ventaError) throw new Error(ventaError.message)
       const ventaId = ventaData[0].id

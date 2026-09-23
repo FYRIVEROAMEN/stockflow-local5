@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 // ✅ NUEVO: agregado Globe
 import { Package, Plus, Edit2, Trash2, LogOut, Search, AlertTriangle, ShoppingCart, BarChart3, RotateCcw, ChevronUp, Globe, DollarSign, User, ShoppingBag } from 'lucide-react'
 // ✅ NUEVO: agregado enviarAWeb, quitarDeWeb
 import { getProductosActivos, deactivateProducto, reactivateProducto, getProductosInactivos, enviarAWeb, quitarDeWeb, getPedidosWeb } from '../services/api'
+import { supabase } from '../services/authService'
+import { LOCAL_ID } from '../services/authService'
 
 import PedidosWebView from './PedidosWebView'
 
@@ -37,6 +39,15 @@ function Dashboard({ onLogout }) {
   const PASO = 12
   const [pedidosCount, setPedidosCount] = useState(0)
 
+
+  // 🔊 Ding precargado: disponible desde el primer pedido
+const dingRef = useRef(null)
+useEffect(() => {
+  dingRef.current = new Audio('/ding.mp3')
+  dingRef.current.preload = 'auto'
+  dingRef.current.volume = 0.3
+}, [])
+
   const fetchPedidosCount = useCallback(async () => {
     try {
       const { data } = await getPedidosWeb()
@@ -45,6 +56,54 @@ function Dashboard({ onLogout }) {
   }, [])
 
   useEffect(() => { fetchPedidosCount() }, [fetchPedidosCount, currentView])
+
+  // 🔔 CAMPANITA: subscription Realtime a pedidos nuevos del local
+useEffect(() => {
+  if (!LOCAL_ID) return // guard: esperar a que el perfil cargue
+
+  const channel = supabase
+    .channel(`pedidos-web-${LOCAL_ID}`)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'pedidos_web',
+      filter: `local_id=eq.${LOCAL_ID}`
+    }, (payload) => {
+      const pedido = payload.new
+      
+      // Actualiza el badge rojo
+      fetchPedidosCount()
+      
+      // 🔔 Toast no-bloqueante (SweetAlert2 ya está importado)
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: '🔔 ¡Nuevo pedido!',
+        html: `<b>${pedido.nombre_cliente || pedido.telefono_contacto || 'Cliente'}</b><br/>$${Number(pedido.total).toLocaleString('es-AR')}`,
+        showConfirmButton: false,
+        timer: 5000,
+        timerProgressBar: true,
+        background: '#fef3c7',
+        color: '#92400e'
+      })
+      
+     // 🔊 Ding instantáneo (ya precargado arriba)
+      if (dingRef.current) {
+        const ding = dingRef.current.cloneNode()
+        ding.volume = 0.3
+        ding.play().catch(() => {})
+      }
+    })
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('🔔 Campanita activa para local', LOCAL_ID)
+      }
+    })
+  
+  // Cleanup: desuscribirse al desmontar el componente
+  return () => { supabase.removeChannel(channel) }
+}, [fetchPedidosCount])
 
 
   const fetchProductos = useCallback(async () => {

@@ -102,7 +102,7 @@ export const createVenta = (data) => api.post('/ventas', {
 
 export const createDetalleVenta = (data) => api.post('/detalle_ventas', { ...data, local_id: LOCAL_ID })
 
-export const getVentas = () => api.get(`/ventas?local_id=eq.${LOCAL_ID}&select=id,fecha,total_bruto,descuento_monto,descuento_motivo,total_neto,estado_pago,cliente_id,clientes(id,nombre,telefono),detalle_ventas(cantidad,precio_unitario,variante_id,variantes(talle,color),productos(nombre,talle,color,costo)),pagos(monto)&order=fecha.desc`)
+export const getVentas = () => api.get(`/ventas?local_id=eq.${LOCAL_ID}&select=id,fecha,total_bruto,descuento_monto,descuento_motivo,total_neto,estado_pago,origen,pedido_web_id,cliente_id,clientes(id,nombre,telefono),detalle_ventas(cantidad,precio_unitario,variante_id,variantes(talle,color),productos(nombre,talle,color,costo)),pagos(monto)&order=fecha.desc`)
 export const deleteDetalleVenta = (ventaId) => api.delete(`/detalle_ventas?venta_id=eq.${ventaId}&local_id=eq.${LOCAL_ID}`)
 export const deleteVenta = (id) => api.delete(`/ventas?id=eq.${id}&local_id=eq.${LOCAL_ID}`)
 

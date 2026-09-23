@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getVentas, deleteVenta } from '../services/api'
-import { Download, Trash2, Filter, User, Package, Eye } from 'lucide-react'
+import { Download, Trash2, Filter, User, Package, Eye, ShoppingCart, Store } from 'lucide-react'
 import Swal from 'sweetalert2'
 
 const formatWhatsAppNumber = (phone) => {
@@ -18,6 +18,7 @@ function SalesHistory() {
   const [ventas, setVentas] = useState([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('todas')
+  const [filtroCanal, setFiltroCanal] = useState('todos')
   const [showDetail, setShowDetail] = useState(false)
   const [selectedVenta, setSelectedVenta] = useState(null)
   const [selectedVentas, setSelectedVentas] = useState([])
@@ -40,7 +41,8 @@ function SalesHistory() {
           cliente_nombre: venta.clientes?.nombre || null,
           cliente_telefono: venta.clientes?.telefono || null,
           total_pagado: totalPagado,
-          total_pendiente: totalPendiente
+          total_pendiente: totalPendiente,
+          canal: venta.pedido_web_id ? 'web' : (venta.origen || 'mostrador')
         }
       })
       setVentas(ventasAdaptadas)
@@ -77,7 +79,6 @@ function SalesHistory() {
     setShowDetail(true)
   }
 
-  // ✅ Helper: talle/color efectivo (variante > legacy)
   const getVarianteInfo = (item) => {
     const talle = item.variantes?.talle || item.productos?.talle
     const color = item.variantes?.color || item.productos?.color
@@ -124,7 +125,7 @@ function SalesHistory() {
   }
 
   const exportarVentasCSV = () => {
-    const headers = ['ID Venta', 'Fecha', 'Cliente', 'Teléfono', 'Producto', 'Talle', 'Color', 'Cantidad', 'Precio Unitario', 'Total Neto', 'Estado Pago', 'Pagado', 'Pendiente']
+    const headers = ['ID Venta', 'Fecha', 'Cliente', 'Teléfono', 'Producto', 'Talle', 'Color', 'Cantidad', 'Precio Unitario', 'Total Neto', 'Estado Pago', 'Pagado', 'Pendiente', 'Canal']
     const rows = []
     
     ventasFiltradas.forEach(v => {
@@ -132,6 +133,7 @@ function SalesHistory() {
       const fecha = new Date(v.fecha).toLocaleString('es-AR')
       const cliente = v.cliente_nombre || 'Sin nombre'
       const telefono = v.cliente_telefono || 'Sin teléfono'
+      const canal = v.canal === 'web' ? 'Web' : 'Mostrador'
       
       if (v.detalle && v.detalle.length > 0) {
         v.detalle.forEach(item => {
@@ -146,7 +148,8 @@ function SalesHistory() {
             totalNeto.toFixed(2),
             v.estado_pago || 'pagado',
             Number(v.total_pagado || 0).toFixed(2),
-            Number(v.total_pendiente || 0).toFixed(2)
+            Number(v.total_pendiente || 0).toFixed(2),
+            canal
           ].map(cell => `"${cell}"`).join(','))
         })
       } else {
@@ -156,7 +159,8 @@ function SalesHistory() {
           totalNeto.toFixed(2),
           v.estado_pago || 'pagado',
           Number(v.total_pagado || 0).toFixed(2),
-          Number(v.total_pendiente || 0).toFixed(2)
+          Number(v.total_pendiente || 0).toFixed(2),
+          canal
         ].map(cell => `"${cell}"`).join(','))
       }
     })
@@ -223,15 +227,27 @@ function SalesHistory() {
     }
   }
 
+  // 🎯 FILTRO DOBLE: por estado_pago Y por canal
   const ventasFiltradas = ventas.filter(v => {
-    if (filtro === 'todas') return true
-    if (filtro === 'pagadas') return v.estado_pago === 'pagado'
-    if (filtro === 'parciales') return v.estado_pago === 'parcial'
-    if (filtro === 'pendientes') return v.estado_pago === 'pendiente'
-    return true
+    const pasaEstado = filtro === 'todas' || 
+      (filtro === 'pagadas' && v.estado_pago === 'pagado') ||
+      (filtro === 'parciales' && v.estado_pago === 'parcial') ||
+      (filtro === 'pendientes' && v.estado_pago === 'pendiente')
+    
+    const pasaCanal = filtroCanal === 'todos' || 
+      (filtroCanal === 'web' && v.canal === 'web') ||
+      (filtroCanal === 'mostrador' && v.canal === 'mostrador')
+    
+    return pasaEstado && pasaCanal
   })
 
   const totalVentas = ventasFiltradas.reduce((sum, v) => sum + Number(v.total_neto || v.total_bruto || 0), 0)
+
+  // 📊 CONTADORES Y TOTALES POR CANAL
+  const contadorWeb = ventas.filter(v => v.canal === 'web').length
+  const contadorMostrador = ventas.filter(v => v.canal === 'mostrador').length
+  const totalWeb = ventas.filter(v => v.canal === 'web').reduce((sum, v) => sum + Number(v.total_neto || v.total_bruto || 0), 0)
+  const totalMostrador = ventas.filter(v => v.canal === 'mostrador').reduce((sum, v) => sum + Number(v.total_neto || v.total_bruto || 0), 0)
 
   const getEstadoBadge = (estado) => {
     switch (estado) {
@@ -242,9 +258,54 @@ function SalesHistory() {
     }
   }
 
+  const getCanalBadge = (canal) => {
+    if (canal === 'web') {
+      return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+        <ShoppingCart className="w-3 h-3" /> Web
+      </span>
+    }
+    return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+      <Store className="w-3 h-3" /> Mostrador
+    </span>
+  }
+
   return (
     <div className="bg-white p-4 sm:p-8 rounded-xl shadow-sm border border-gray-200 max-w-5xl mx-auto">
       <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Historial de Ventas</h2>
+
+      {/* 🎯 CHIPS DE FILTRO POR CANAL */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <button
+          onClick={() => setFiltroCanal('todos')}
+          className={`px-4 py-2 rounded-lg font-semibold text-sm transition ${
+            filtroCanal === 'todos' 
+              ? 'bg-gray-800 text-white' 
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          Todos ({ventas.length})
+        </button>
+        <button
+          onClick={() => setFiltroCanal('web')}
+          className={`px-4 py-2 rounded-lg font-semibold text-sm transition flex items-center gap-2 ${
+            filtroCanal === 'web' 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+          }`}
+        >
+          <ShoppingCart className="w-4 h-4" /> Web ({contadorWeb})
+        </button>
+        <button
+          onClick={() => setFiltroCanal('mostrador')}
+          className={`px-4 py-2 rounded-lg font-semibold text-sm transition flex items-center gap-2 ${
+            filtroCanal === 'mostrador' 
+              ? 'bg-purple-600 text-white' 
+              : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
+          }`}
+        >
+          <Store className="w-4 h-4" /> Mostrador ({contadorMostrador})
+        </button>
+      </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -284,10 +345,27 @@ function SalesHistory() {
         </div>
       )}
 
-      <div className="bg-blue-50 border-2 border-blue-200 p-4 rounded-xl mb-6">
-        <p className="text-lg text-gray-700">Total de ventas en el período:</p>
-        <p className="text-lg sm:text-2xl font-bold text-green-700">${Number(totalVentas).toFixed(2)}</p>
-        <p className="text-base text-gray-600 mt-1">{ventasFiltradas.length} transacción(es)</p>
+      {/* 📊 TOTALES POR CANAL */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+        <div className="bg-gray-50 border-2 border-gray-200 p-4 rounded-xl">
+          <p className="text-sm text-gray-600 mb-1">Total general</p>
+          <p className="text-xl sm:text-2xl font-bold text-gray-800">${Number(totalVentas).toFixed(2)}</p>
+          <p className="text-xs text-gray-500 mt-1">{ventasFiltradas.length} transacción(es)</p>
+        </div>
+        <div className="bg-blue-50 border-2 border-blue-200 p-4 rounded-xl">
+          <p className="text-sm text-blue-700 mb-1 flex items-center gap-1">
+            <ShoppingCart className="w-4 h-4" /> Web
+          </p>
+          <p className="text-xl sm:text-2xl font-bold text-blue-800">${Number(totalWeb).toFixed(2)}</p>
+          <p className="text-xs text-blue-600 mt-1">{contadorWeb} venta(s)</p>
+        </div>
+        <div className="bg-purple-50 border-2 border-purple-200 p-4 rounded-xl">
+          <p className="text-sm text-purple-700 mb-1 flex items-center gap-1">
+            <Store className="w-4 h-4" /> Mostrador
+          </p>
+          <p className="text-xl sm:text-2xl font-bold text-purple-800">${Number(totalMostrador).toFixed(2)}</p>
+          <p className="text-xs text-purple-600 mt-1">{contadorMostrador} venta(s)</p>
+        </div>
       </div>
 
       {loading ? (
@@ -315,6 +393,7 @@ function SalesHistory() {
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h3 className="text-base sm:text-lg font-bold text-gray-800">Venta #{venta.id}</h3>
                         {getEstadoBadge(venta.estado_pago || 'pagado')}
+                        {getCanalBadge(venta.canal)}
                       </div>
                       <p className="text-xs sm:text-sm text-gray-600">{new Date(venta.fecha).toLocaleString('es-AR')}</p>
                       <p className="text-xs sm:text-sm text-gray-600">{venta.detalle?.length || 0} producto(s)</p>
