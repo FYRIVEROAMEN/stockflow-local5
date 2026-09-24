@@ -54,6 +54,26 @@ export const getVariantes = async (productoId) => {
   return { data }
 }
 
+export const getStockReservado = async (varianteIds) => {
+  if (!varianteIds || varianteIds.length === 0) return { data: {} }
+
+  const results = await Promise.all(
+    varianteIds.map(async (id) => {
+      const { data, error } = await supabase.rpc('stock_reservado', {
+        p_variante_id: id
+      })
+      if (error) throw error
+      return { id, reservados: data || 0 }
+    })
+  )
+
+  const map = {}
+  for (const r of results) map[r.id] = r.reservados
+
+  return { data: map }
+}
+
+
 // INSERT sin id (el id lo genera la base)
 export const addVariante = async (variante) => {
   const { data, error } = await supabase

@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, Plus, Trash2, ShoppingCart, Minus, X, Barcode, User, Phone, DollarSign, Tag, ChevronDown, ChevronUp } from 'lucide-react'
-// En SalesForm.jsx, arriba con los imports:
 import { 
   updateProducto, 
   createVenta, 
@@ -10,7 +9,8 @@ import {
   actualizarEstadoPagoVenta,
   updateVentaCliente,
   getVariantes,
-  descontarStockVariante
+  descontarStockVariante,
+  getStockReservado
 } from '../services/api'
 import { LOCAL_ID } from '../services/authService'
 import Swal from 'sweetalert2'
@@ -70,11 +70,10 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
   const [showScanTooltip, setShowScanTooltip] = useState(false)
   const [showDiscountTooltip, setShowDiscountTooltip] = useState(false)
   
-  // Selector de variantes: panel inline compartido (búsqueda + asignación desde carrito)
   const [variantesProducto, setVariantesProducto] = useState(null)
   const [variantes, setVariantes] = useState([])
   const [asignandoItem, setAsignandoItem] = useState(null)
-  const [tallePanel, setTallePanel] = useState(null) // paso 1 del selector en 2 pasos
+  const [tallePanel, setTallePanel] = useState(null)
   
   const codeReaderRef = useRef(null)
   const isCancelledRef = useRef(false)
@@ -102,6 +101,39 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(pattern)
   }, [])
 
+  // ⚠️ Chequea stock comprometido por pedidos web sin confirmar
+  const chequearReservado = async (variante, cantidadPedida) => {
+    if (!variante) return true
+    const { data: map } = await getStockReservado([variante.id])
+    const reservados = map[variante.id] || 0
+    const disponible = variante.stock - reservados
+
+    if (cantidadPedida > disponible) {
+      await Swal.fire({
+        icon: 'warning',
+        title: '⚠️ Stock reservado por la web',
+        html: `Hay <b>${reservados} u</b> de <b>${variante.talle || ''} ${variante.color || ''}</b> reservadas en pedidos web sin confirmar.<br/>Disponibles reales: <b>${disponible}</b>.<br/><br/>Revisá la tab Pedidos para confirmar o cancelar esos pedidos.`,
+        confirmButtonColor: '#f59e0b'
+      })
+      return false
+    }
+
+    if (reservados > 0) {
+      const r = await Swal.fire({
+        icon: 'warning',
+        title: 'Ojo: stock comprometido',
+        html: `Quedan <b>${disponible}</b> disponibles reales (${reservados} u reservadas por pedidos web).<br/>¿Vender igual?`,
+        showCancelButton: true,
+        confirmButtonText: 'Vender igual',
+        cancelButtonText: 'Mejor no',
+        confirmButtonColor: '#f59e0b'
+      })
+      return r.isConfirmed
+    }
+
+    return true
+  }
+
   // Flujo 1: desde el buscador / escáner
   const addToCart = useCallback(async (product) => {
     triggerHaptic(20)
@@ -120,6 +152,9 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
       
       if (existingItem) {
         const stockDisponible = variante ? variante.stock : product.stock
+        
+        if (!(await chequearReservado(variante, existingItem.quantity + 1))) return
+        
         if (existingItem.quantity + 1 > stockDisponible) {
           Swal.fire({ title: 'Stock insuficiente', text: `Solo quedan ${stockDisponible}.`, icon: 'warning', confirmButtonColor: '#dc2626' })
           return
@@ -131,6 +166,9 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
         ))
       } else {
         const stockDisponible = variante ? variante.stock : product.stock
+        
+        if (!(await chequearReservado(variante, 1))) return
+        
         if (stockDisponible <= 0) {
           Swal.fire({ title: 'Sin stock', text: 'Este producto no tiene stock disponible.', icon: 'warning', confirmButtonColor: '#dc2626' })
           return
@@ -180,8 +218,10 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
   }
 
   // Agregar variante: maneja ambos modos (nuevo y asignar)
-  const agregarConVariante = (variante) => {
+  const agregarConVariante = async (variante) => {
     if (asignandoItem) {
+      if (!(await chequearReservado(variante, 1))) return
+      
       const nuevo = {
         ...asignandoItem,
         variante_id: variante.id,
@@ -198,6 +238,8 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
     } else {
       const existingItem = cart.find(item => item.id === variantesProducto.id && item.variante_id === variante.id)
       if (existingItem) {
+        if (!(await chequearReservado(variante, existingItem.quantity + 1))) return
+        
         if (existingItem.quantity + 1 > variante.stock) {
           Swal.fire({ title: 'Stock insuficiente', text: `Solo quedan ${variante.stock} de esta variante.`, icon: 'warning', confirmButtonColor: '#dc2626' })
           return
@@ -208,6 +250,8 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
             : item
         ))
       } else {
+        if (!(await chequearReservado(variante, 1))) return
+        
         setCart([...cart, { 
           ...variantesProducto, 
           variante_id: variante.id,
@@ -279,7 +323,6 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
     triggerHaptic(50)
     
     try {
-      
       const { data: ventaData, error: ventaError } = await createVenta({ 
         total_bruto: totalBruto, descuento_monto: descuentoMonto, 
         descuento_motivo: aplicarDescuento ? motivoDescuento : 'Sin descuento', 
@@ -423,7 +466,6 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
               </div>
             </div>
 
-            {/* ✅ Panel de variantes en 2 pasos (talle → color) */}
             {variantesProducto && (
               <div className="bg-white border-2 border-green-300 rounded-xl p-4 shadow-sm">
                 <div className="flex justify-between items-center mb-2">
@@ -436,7 +478,6 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
                   </button>
                 </div>
 
-                {/* Sin talles cargados: elegir color directo */}
                 {[...new Set(variantes.map(v => v.talle).filter(Boolean))].length === 0 ? (
                   <>
                     <p className="text-xs text-gray-500 mb-3">Tocá el color que llevás:</p>
