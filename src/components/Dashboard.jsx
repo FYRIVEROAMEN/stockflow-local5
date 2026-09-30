@@ -1,15 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-// ✅ NUEVO: agregado Globe
-import { Package, Plus, Edit2, Trash2, LogOut, Search, AlertTriangle, ShoppingCart, BarChart3, RotateCcw, ChevronUp, Globe, DollarSign, User, ShoppingBag } from 'lucide-react'
-// ✅ NUEVO: agregado enviarAWeb, quitarDeWeb
+import { Package, Plus, Edit2, Trash2, LogOut, Search, AlertTriangle, ShoppingCart, BarChart3, RotateCcw, ChevronUp, Globe, DollarSign, User, ShoppingBag, Home, MoreVertical, X, CheckCircle2, Circle, Check } from 'lucide-react'
 import { getProductosActivos, deactivateProducto, reactivateProducto, getProductosInactivos, enviarAWeb, quitarDeWeb, getPedidosWeb } from '../services/api'
 import { supabase } from '../services/authService'
 import { LOCAL_ID } from '../services/authService'
+import { useAuth } from '../context/AuthContext'
 
 import PedidosWebView from './PedidosWebView'
-
-
-
 import ProductForm from './ProductForm'
 import SalesForm from './SalesForm'
 import SalesHistory from './SalesHistory'
@@ -20,33 +16,43 @@ import ClientesView from './ClientesView'
 import GastosView from './GastosView'
 import ProfileView from './ProfileView'
 
+import styles from './Dashboard.module.css'
+
+const fmt = (n) => '$ ' + Math.round(Number(n || 0)).toLocaleString('es-AR')
+
 function Dashboard({ onLogout }) {
+  const { profile } = useAuth()
+
   const [productos, setProductos] = useState([])
   const [search, setSearch] = useState('')
+  const [filtroCat, setFiltroCat] = useState('todas')
+  const [soloStockBajo, setSoloStockBajo] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [currentView, setCurrentView] = useState('dashboard')
+  const [currentView, setCurrentView] = useState('home')
   const [showInactive, setShowInactive] = useState(false)
   const [productosInactivos, setProductosInactivos] = useState([])
   const [showTutorial, setShowTutorial] = useState(false)
   const [addedToCart, setAddedToCart] = useState(null)
   const [cart, setCart] = useState([])
-  const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [selectedImage, setSelectedImage] = useState(null)
   const [cantidadVisible, setCantidadVisible] = useState(12)
   const [showScrollTop, setShowScrollTop] = useState(false)
+  const [menuAbiertoId, setMenuAbiertoId] = useState(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [modoSeleccion, setModoSeleccion] = useState(false)
+  const [seleccion, setSeleccion] = useState([])
+  const [ventasHoy, setVentasHoy] = useState({ monto: 0, count: 0 })
   const PASO = 12
   const [pedidosCount, setPedidosCount] = useState(0)
 
-
-  // 🔊 Ding precargado: disponible desde el primer pedido
-const dingRef = useRef(null)
-useEffect(() => {
-  dingRef.current = new Audio('/ding.mp3')
-  dingRef.current.preload = 'auto'
-  dingRef.current.volume = 0.3
-}, [])
+  const dingRef = useRef(null)
+  useEffect(() => {
+    dingRef.current = new Audio('/ding.mp3')
+    dingRef.current.preload = 'auto'
+    dingRef.current.volume = 0.3
+  }, [])
 
   const fetchPedidosCount = useCallback(async () => {
     try {
@@ -57,63 +63,36 @@ useEffect(() => {
 
   useEffect(() => { fetchPedidosCount() }, [fetchPedidosCount, currentView])
 
-  // 🔔 CAMPANITA: subscription Realtime a pedidos nuevos del local
-useEffect(() => {
-  if (!LOCAL_ID) return // guard: esperar a que el perfil cargue
-
-  const channel = supabase
-    .channel(`pedidos-web-${LOCAL_ID}`)
-    .on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'pedidos_web',
-      filter: `local_id=eq.${LOCAL_ID}`
-    }, (payload) => {
-      const pedido = payload.new
-      
-      // Actualiza el badge rojo
-      fetchPedidosCount()
-      
-      // 🔔 Toast no-bloqueante (SweetAlert2 ya está importado)
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'success',
-        title: '🔔 ¡Nuevo pedido!',
-        html: `<b>${pedido.nombre_cliente || pedido.telefono_contacto || 'Cliente'}</b><br/>$${Number(pedido.total).toLocaleString('es-AR')}`,
-        showConfirmButton: false,
-        timer: 5000,
-        timerProgressBar: true,
-        background: '#fef3c7',
-        color: '#92400e'
-      })
-      
-     // 🔊 Ding instantáneo (ya precargado arriba)
-      if (dingRef.current) {
-        const ding = dingRef.current.cloneNode()
-        ding.volume = 0.3
-        ding.play().catch(() => {})
-      }
-    })
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        console.log('🔔 Campanita activa para local', LOCAL_ID)
-      }
-    })
-  
-  // Cleanup: desuscribirse al desmontar el componente
-  return () => { supabase.removeChannel(channel) }
-}, [fetchPedidosCount])
-
+  // 🔔 CAMPANITA realtime
+  useEffect(() => {
+    if (!LOCAL_ID) return
+    const channel = supabase
+      .channel(`pedidos-web-${LOCAL_ID}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos_web', filter: `local_id=eq.${LOCAL_ID}` },
+        (payload) => {
+          const pedido = payload.new
+          fetchPedidosCount()
+          Swal.fire({
+            toast: true, position: 'top-end', icon: 'success', title: '🔔 ¡Nuevo pedido!',
+            html: `<b>${pedido.nombre_cliente || pedido.telefono_contacto || 'Cliente'}</b><br/>${fmt(pedido.total)}`,
+            showConfirmButton: false, timer: 5000, timerProgressBar: true, background: '#fef3c7', color: '#92400e'
+          })
+          if (dingRef.current) {
+            const ding = dingRef.current.cloneNode()
+            ding.volume = 0.3
+            ding.play().catch(() => {})
+          }
+        })
+      .subscribe((status) => { if (status === 'SUBSCRIBED') console.log('🔔 Campanita activa para local', LOCAL_ID) })
+    return () => { supabase.removeChannel(channel) }
+  }, [fetchPedidosCount])
 
   const fetchProductos = useCallback(async () => {
     setLoading(true)
     try {
       const { data } = await getProductosActivos()
       if (data) setProductos(data)
-    } catch (err) {
-      console.error('Error al cargar productos:', err)
-    }
+    } catch (err) { console.error('Error al cargar productos:', err) }
     setLoading(false)
   }, [])
 
@@ -121,73 +100,63 @@ useEffect(() => {
     try {
       const { data } = await getProductosInactivos()
       if (data) setProductosInactivos(data)
-    } catch (err) {
-      console.error('Error al cargar inactivos:', err)
-    }
+    } catch (err) { console.error('Error al cargar inactivos:', err) }
   }, [])
 
-  useEffect(() => { 
+  useEffect(() => {
     fetchProductos()
     const tutorialSeen = localStorage.getItem('tutorial_completed')
-    if (!tutorialSeen) {
-      setTimeout(() => setShowTutorial(true), 500)
-    }
+    if (!tutorialSeen) setTimeout(() => setShowTutorial(true), 500)
   }, [fetchProductos])
 
-  const [scrolled, setScrolled] = useState(false)
+  // 📅 Ventas de hoy
+  useEffect(() => {
+    if (currentView !== 'home' || !LOCAL_ID) return
+    (async () => {
+      try {
+        const desde = new Date(); desde.setHours(0, 0, 0, 0)
+        const { data } = await supabase.from('ventas').select('total').eq('local_id', LOCAL_ID).gte('fecha', desde.toISOString())
+        const list = data || []
+        setVentasHoy({ monto: list.reduce((s, v) => s + Number(v.total || 0), 0), count: list.length })
+      } catch (err) { /* sin ventas hoy */ }
+    })()
+  }, [currentView])
 
+  const [scrolled, setScrolled] = useState(false)
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 50)
-      setShowScrollTop(window.scrollY > 400)
+      const y = window.scrollY
+      setScrolled(prev => {
+        if (prev && y < 10) return false
+        if (!prev && y > 50) return true
+        return prev
+      })
+      setShowScrollTop(y > 400)
     }
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  useEffect(() => {
-    setCantidadVisible(PASO)
-  }, [search])
+  useEffect(() => { setCantidadVisible(PASO) }, [search, filtroCat, soloStockBajo])
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
       title: '¿Desactivar producto?',
-      html: `
-        <p style="margin-bottom: 10px;">Este producto dejará de aparecer en el inventario.</p>
-        <p style="color: #6b7280; font-size: 0.9rem;">
-          No se borrará de la base de datos para no romper el historial de ventas.
-          Podés reactivarlo después desde "Ver productos desactivados".
-        </p>
-      `,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Sí, desactivar',
-      cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#dc2626',
-      cancelButtonColor: '#6b7280'
+      html: `<p style="margin-bottom:10px">Este producto dejará de aparecer en el inventario.</p>
+             <p style="color:#6b7280;font-size:0.9rem">No se borrará de la base: podés reactivarlo después.</p>`,
+      icon: 'warning', showCancelButton: true,
+      confirmButtonText: 'Sí, desactivar', cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280'
     })
-
     if (result.isConfirmed) {
       try {
         await deactivateProducto(id)
         fetchProductos()
-        Swal.fire({
-          title: 'Producto desactivado',
-          text: 'Podés reactivarlo cuando quieras',
-          icon: 'success',
-          timer: 2000,
-          showConfirmButton: false
-        })
+        Swal.fire({ title: 'Producto desactivado', text: 'Podés reactivarlo cuando quieras', icon: 'success', timer: 2000, showConfirmButton: false })
       } catch (err) {
-        Swal.fire({
-          title: 'Error',
-          text: err.response?.data?.message || err.message,
-          icon: 'error'
-        })
+        Swal.fire({ title: 'Error', text: err.response?.data?.message || err.message, icon: 'error' })
       }
     }
   }
@@ -195,26 +164,13 @@ useEffect(() => {
   const handleReactivar = async (id) => {
     try {
       await reactivateProducto(id)
-      fetchProductosInactivos()
-      fetchProductos()
-      Swal.fire({
-        title: 'Producto reactivado',
-        text: 'El producto volvió al inventario activo',
-        icon: 'success',
-        timer: 2000,
-        showConfirmButton: false
-      })
+      fetchProductosInactivos(); fetchProductos()
+      Swal.fire({ title: 'Producto reactivado', text: 'El producto volvió al inventario activo', icon: 'success', timer: 2000, showConfirmButton: false })
     } catch (err) {
-      Swal.fire({
-        title: 'Error al reactivar',
-        text: err.response?.data?.message || err.message,
-        icon: 'error',
-        confirmButtonColor: '#dc2626'
-      })
+      Swal.fire({ title: 'Error al reactivar', text: err.response?.data?.message || err.message, icon: 'error', confirmButtonColor: '#dc2626' })
     }
   }
 
-  // ✅ NUEVO: Lógica del botón web
   const getWebButtonStyle = (estado) => {
     switch (estado) {
       case 'publicado': return { cls: 'bg-green-100 text-green-700 hover:bg-green-200', title: '🌐 Publicado — click para quitar de la web' }
@@ -227,29 +183,18 @@ useEffect(() => {
   const handleWebToggle = async (producto) => {
     const estado = producto.web_estado || 'no_enviado'
     const esEnvio = estado === 'no_enviado' || estado === 'rechazado'
-
     const result = await Swal.fire({
-      title: esEnvio
-        ? (estado === 'rechazado' ? '¿Reenviar a la web?' : '¿Enviar a la web?')
-        : (estado === 'publicado' ? '¿Quitar de la web?' : '¿Cancelar el envío?'),
-      text: esEnvio
-        ? 'Quedará pendiente de aprobación del dueño'
-        : 'Dejará de verse (o de estar pendiente) en el catálogo online',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: esEnvio ? 'Sí, enviar' : 'Sí, quitar',
-      cancelButtonText: 'Cancelar',
+      title: esEnvio ? (estado === 'rechazado' ? '¿Reenviar a la web?' : '¿Enviar a la web?') : (estado === 'publicado' ? '¿Quitar de la web?' : '¿Cancelar el envío?'),
+      text: esEnvio ? 'Quedará pendiente de aprobación del dueño' : 'Dejará de verse (o de estar pendiente) en el catálogo online',
+      icon: 'question', showCancelButton: true,
+      confirmButtonText: esEnvio ? 'Sí, enviar' : 'Sí, quitar', cancelButtonText: 'Cancelar',
       confirmButtonColor: esEnvio ? '#2563eb' : '#dc2626'
     })
-
     if (result.isConfirmed) {
       try {
         if (esEnvio) await enviarAWeb(producto.id)
         else await quitarDeWeb(producto.id)
-        Swal.fire({
-          title: esEnvio ? '🌐 Enviado a la web' : 'Quitado de la web',
-          icon: 'success', timer: 1500, showConfirmButton: false
-        })
+        Swal.fire({ title: esEnvio ? '🌐 Enviado a la web' : 'Quitado de la web', icon: 'success', timer: 1500, showConfirmButton: false })
         fetchProductos()
       } catch (err) {
         Swal.fire({ title: 'Error', text: err.message, icon: 'error' })
@@ -257,453 +202,469 @@ useEffect(() => {
     }
   }
 
+  // ✅ MODO SELECCIÓN
+  const toggleSeleccion = (id) => setSeleccion(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
+  const salirDeSeleccion = () => { setModoSeleccion(false); setSeleccion([]) }
+
+  const enviarSeleccion = async () => {
+    if (!seleccion.length) return
+    Swal.fire({ title: `Enviando ${seleccion.length} a la web...`, allowOutsideClick: false, didOpen: () => Swal.showLoading() })
+    try {
+      await Promise.all(seleccion.map(id => enviarAWeb(id)))
+      Swal.fire({ title: `🌐 ${seleccion.length} producto(s) enviados a la web`, text: 'Quedan pendientes de aprobación', icon: 'success', timer: 2500, showConfirmButton: false })
+      salirDeSeleccion(); fetchProductos()
+    } catch (err) {
+      Swal.fire({ title: 'Error al enviar', text: err.message, icon: 'error' })
+    }
+  }
+
+  const desactivarSeleccion = async () => {
+    if (!seleccion.length) return
+    const res = await Swal.fire({
+      title: `¿Desactivar ${seleccion.length} producto(s)?`,
+      text: 'Podrás reactivarlos después desde "Ver desactivados"',
+      icon: 'warning', showCancelButton: true,
+      confirmButtonText: 'Sí, desactivar', cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280'
+    })
+    if (!res.isConfirmed) return
+    Swal.fire({ title: 'Desactivando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() })
+    try {
+      await Promise.all(seleccion.map(id => deactivateProducto(id)))
+      Swal.fire({ title: `${seleccion.length} producto(s) desactivados`, icon: 'success', timer: 2000, showConfirmButton: false })
+      salirDeSeleccion(); fetchProductos()
+    } catch (err) {
+      Swal.fire({ title: 'Error', text: err.message, icon: 'error' })
+    }
+  }
+
   const addToCartFromDashboard = (product) => {
     setCart(prevCart => {
       const existingItem = prevCart.find(item => item.id === product.id)
       let newCart
-      
       if (existingItem) {
         if (existingItem.quantity + 1 > product.stock) {
-          Swal.fire({
-            title: 'Stock insuficiente',
-            text: `Solo quedan ${product.stock} unidades de ${product.nombre}.`,
-            icon: 'warning',
-            confirmButtonColor: '#dc2626',
-            timer: 2000,
-            showConfirmButton: false
-          })
+          Swal.fire({ title: 'Stock insuficiente', text: `Solo quedan ${product.stock} unidades de ${product.nombre}.`, icon: 'warning', confirmButtonColor: '#dc2626', timer: 2000, showConfirmButton: false })
           return prevCart
         }
-        newCart = prevCart.map(item => 
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-        )
+        newCart = prevCart.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item)
       } else {
         newCart = [...prevCart, { ...product, quantity: 1 }]
       }
-      
-      Swal.fire({
-        title: 'Agregado al carrito!',
-        text: `${product.nombre} (${newCart.reduce((sum, item) => item.id === product.id ? item.quantity : sum, 0)} en total)`,
-        icon: 'success',
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 2000,
-        timerProgressBar: true
-      })
-      
+      Swal.fire({ title: 'Agregado al carrito!', text: `${product.nombre} (${newCart.reduce((sum, item) => item.id === product.id ? item.quantity : sum, 0)} en total)`, icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true })
       return newCart
     })
   }
 
-  const filteredProductos = productos.filter(p =>
-    p.nombre?.toLowerCase().includes(search.toLowerCase()) ||
-    p.categoria?.toLowerCase().includes(search.toLowerCase()) ||
-    p.color?.toLowerCase().includes(search.toLowerCase())
-  )
+  const vender = (p) => {
+    addToCartFromDashboard(p)
+    setAddedToCart(p.id)
+    setTimeout(() => setAddedToCart(null), 2000)
+    setCurrentView('sales')
+  }
+
+  const categorias = [...new Set(productos.map(p => p.categoria).filter(Boolean))].sort()
+
+  const filteredProductos = productos.filter(p => {
+    const matchSearch =
+      p.nombre?.toLowerCase().includes(search.toLowerCase()) ||
+      p.categoria?.toLowerCase().includes(search.toLowerCase()) ||
+      p.color?.toLowerCase().includes(search.toLowerCase())
+    const matchCat = filtroCat === 'todas' || p.categoria === filtroCat
+    const matchStock = !soloStockBajo || p.stock <= 5
+    return matchSearch && matchCat && matchStock
+  })
 
   const productosMostrados = filteredProductos.slice(0, cantidadVisible)
-
   const stockBajo = productos.filter(p => p.stock <= 5).length
   const totalProductos = productos.length
   const totalStock = productos.reduce((acc, p) => acc + (p.stock || 0), 0)
+  const productosEnRiesgo = productos.filter(p => p.stock <= 5).sort((a, b) => a.stock - b.stock)
 
-  const productosEnRiesgo = productos
-    .filter(p => p.stock <= 5)
-    .sort((a, b) => a.stock - b.stock)
+  const irAStockBajo = () => { setSoloStockBajo(true); setCurrentView('inventario') }
+  const irA = (vista) => { setCurrentView(vista); setDrawerOpen(false) }
 
-  const scrollToProductos = () => {
-    window.scrollTo({ top: 450, behavior: 'smooth' })
-  }
+  // badge de selección sobre la foto (el norte visual nunca se pierde)
+  const CheckOverlay = ({ id }) => modoSeleccion ? (
+    <span className={`${styles.checkOverlay} ${seleccion.includes(id) ? styles.checkOverlayOn : ''}`}>
+      {seleccion.includes(id) && <Check className="w-3.5 h-3.5" />}
+    </span>
+  ) : null
 
   return (
-    <div className="min-h-screen pb-32 md:pb-8">
-      <header className={`bg-white shadow-sm border-b sticky top-0 z-40 transition-all duration-200 ${
-        scrolled ? 'py-1.5' : 'py-3'
-      }`}>
-        <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
-          <h1 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2">
-            <div className={`bg-blue-600 rounded-lg flex items-center justify-center transition-all ${
-              scrolled ? 'w-7 h-7' : 'w-8 h-8'
-            }`}>
-              <Package className="w-4 h-4 md:w-5 md:h-5 text-white" />
+    <div className={`min-h-screen pb-32 md:pb-8 ${styles.root}`}>
+      {/* ============ HEADER ============ */}
+      <header className={`${styles.header} ${scrolled ? styles.headerScrolled : styles.headerNormal}`}>
+        <div className={styles.headerInner}>
+          <h1 className={styles.logo}>
+            <div className={`${styles.logoIcon} ${scrolled ? styles.logoIconSmall : styles.logoIconBig}`}>
+              <Package className="w-4 h-4 md:w-5 md:h-5" />
             </div>
-            <span className="text-lg md:text-xl font-bold">
-              Stock<span className="text-blue-600">Shop</span>
-            </span>
+            <span className={styles.logoText}>Stock<span className={styles.logoAccent}>Shop</span></span>
           </h1>
-          <button onClick={onLogout} className="btn btn-secondary touch-target">
-            <LogOut className="w-5 h-5" /> <span className="hidden sm:inline">Salir</span>
+          <button onClick={onLogout} className={`btn btn-secondary touch-target ${styles.soloDesktop}`}>
+            <LogOut className="w-5 h-5" /> Salir
           </button>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className={styles.main}>
+        {/* ============ TABS DESKTOP ============ */}
         <div className="top-tabs">
-          <button onClick={() => setCurrentView('dashboard')} className={`tab-btn ${currentView === 'dashboard' ? 'active' : ''}`}>
+          <button onClick={() => irA('home')} className={`tab-btn ${currentView === 'home' ? 'active' : ''}`}>
+            <Home className="w-6 h-6" /> Inicio
+          </button>
+          <button onClick={() => irA('inventario')} className={`tab-btn ${currentView === 'inventario' ? 'active' : ''}`}>
             <Package className="w-6 h-6" /> Inventario
           </button>
-          <button onClick={() => setCurrentView('sales')} className={`tab-btn ${currentView === 'sales' ? 'active' : ''}`}>
+          <button onClick={() => irA('sales')} className={`tab-btn ${currentView === 'sales' ? 'active' : ''}`}>
             <div className="flex items-center gap-1">
               <ShoppingCart className="w-6 h-6" />
-              {cart.length > 0 && (
-                <span className="bg-green-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                  {cart.length}
-                </span>
-              )}
+              {cart.length > 0 && <span className="bg-green-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{cart.length}</span>}
             </div>
-            <span className="ml-1">Registrar Venta</span>
+            Registrar Venta
           </button>
-          <button onClick={() => setCurrentView('history')} className={`tab-btn ${currentView === 'history' ? 'active' : ''}`}>
+          <button onClick={() => irA('history')} className={`tab-btn ${currentView === 'history' ? 'active' : ''}`}>
             <BarChart3 className="w-6 h-6" /> Historial
           </button>
-
-          <button onClick={() => setCurrentView('pedidos')} className={`tab-btn ${currentView === 'pedidos' ? 'active' : ''}`}>
+          <button onClick={() => irA('pedidos')} className={`tab-btn ${currentView === 'pedidos' ? 'active' : ''}`}>
             <div className="flex items-center gap-1">
               <ShoppingBag className="w-6 h-6" />
-              {pedidosCount > 0 && (
-                <span className="bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                  {pedidosCount}
-                </span>
-              )}
+              {pedidosCount > 0 && <span className="bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{pedidosCount}</span>}
             </div>
-            <span className="ml-1">Pedidos</span>
+            Pedidos
           </button>
-
-          <button onClick={() => setCurrentView('clientes')} className={`tab-btn ${currentView === 'clientes' ? 'active' : ''}`}>
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-            Clientes
+          <button onClick={() => irA('clientes')} className={`tab-btn ${currentView === 'clientes' ? 'active' : ''}`}>
+            <User className="w-6 h-6" /> Clientes
           </button>
-          <button onClick={() => setCurrentView('metrics')} className={`tab-btn ${currentView === 'metrics' ? 'active' : ''}`}>
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            Métricas
+          <button onClick={() => irA('metrics')} className={`tab-btn ${currentView === 'metrics' ? 'active' : ''}`}>
+            <BarChart3 className="w-6 h-6" /> Métricas
           </button>
-          <button onClick={() => setCurrentView('gastos')} className={`tab-btn ${currentView === 'gastos' ? 'active' : ''}`}>
+          <button onClick={() => irA('gastos')} className={`tab-btn ${currentView === 'gastos' ? 'active' : ''}`}>
             <DollarSign className="w-6 h-6" /> Gastos
           </button>
-          <button onClick={() => setCurrentView('profile')} className={`tab-btn ${currentView === 'profile' ? 'active' : ''}`}>
+          <button onClick={() => irA('profile')} className={`tab-btn ${currentView === 'profile' ? 'active' : ''}`}>
             <User className="w-6 h-6" /> Mi cuenta
           </button>
         </div>
 
-        {currentView === 'dashboard' ? (
+        {/* ============ VISTA HOME ============ */}
+        {currentView === 'home' ? (
           <>
-            <div className="mb-6">
-              <div 
-                className="sm:hidden overflow-x-auto -mx-4 px-4"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-              >
-                <div className="flex gap-3 pb-2" style={{ width: 'max-content' }}>
-                  <button
-                    onClick={() => setCurrentView('metrics')}
-                    className="shrink-0 w-[70vw] h-[140px] p-3 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-2xl border border-indigo-200 flex flex-col justify-between hover:shadow-md transition-all duration-200 active:scale-95 cursor-pointer"
-                  >
-                    <div>
-                      <p className="text-xs text-indigo-700 font-medium">Mis Productos</p>
-                      <p className="text-3xl font-bold text-indigo-900 mt-1">{totalProductos}</p>
-                    </div>
-                    <p className="text-[12px] text-indigo-600">Productos activos</p>
-                  </button>
+            {/* ----- MOBILE ----- */}
+            <div className="sm:hidden">
+              <p className={styles.greetingHola}>👋 Hola, {profile?.nombre || '¡a vender!'}</p>
+              <p className={styles.greetingLocal}>{profile?.locales?.nombre || 'Tu comercio'}</p>
 
-                  <button
-                    onClick={() => {
-                      setCurrentView('dashboard');
-                      setTimeout(() => scrollToProductos(), 100);
-                    }}
-                    className="shrink-0 w-[70vw] h-[140px] p-3 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl border border-blue-200 flex flex-col justify-between hover:shadow-md transition-all duration-200 active:scale-95 cursor-pointer"
-                  >
-                    <div>
-                      <p className="text-xs text-blue-700 font-medium">Stock Disponible</p>
-                      <p className="text-3xl font-bold text-blue-600 mt-1">{totalStock}</p>
-                    </div>
-                    <p className="text-[12px] text-blue-600">unidades en inventario</p>
-                  </button>
+              <div className={styles.heroCard}>
+                <div className={styles.heroLogo}><Package className="w-7 h-7" /></div>
+                <div>
+                  <p className={styles.heroName}>{profile?.locales?.nombre || 'Tu comercio'}</p>
+                  <p className={styles.heroSub}>{totalProductos} productos · {totalStock} unidades</p>
+                </div>
+              </div>
 
-                  <button
-                    onClick={() => {
-                      setCurrentView('dashboard');
-                      if (stockBajo > 0) setTimeout(() => scrollToProductos(), 100);
-                    }}
-                    className={`shrink-0 w-[70vw] h-[140px] p-3 rounded-2xl border flex flex-col justify-between hover:shadow-md transition-all duration-200 active:scale-95 cursor-pointer ${
-                      stockBajo > 0 
-                        ? 'bg-gradient-to-br from-red-50 to-red-100 border-red-200' 
-                        : 'bg-gradient-to-br from-green-50 to-green-100 border-green-200'
-                    }`}
-                  >
+              <div className={styles.mobileScroll}>
+                <div className={styles.mobileScrollInner}>
+                  <button onClick={() => irA('inventario')} className={`${styles.mobileMetricCard} ${styles.mobileMetricCardIndigo}`}>
+                    <div>
+                      <p className={styles.metricLabel}>Mis Productos</p>
+                      <p className={styles.metricValue}>{totalProductos}</p>
+                    </div>
+                    <p className={styles.metricHint}>productos activos</p>
+                  </button>
+                  <button onClick={() => irA('inventario')} className={`${styles.mobileMetricCard} ${styles.mobileMetricCardBlue}`}>
+                    <div>
+                      <p className={styles.metricLabel}>Stock Disponible</p>
+                      <p className={styles.metricValueBlue}>{totalStock}</p>
+                    </div>
+                    <p className={styles.metricHint}>unidades en inventario</p>
+                  </button>
+                  <button onClick={irAStockBajo} className={`${styles.mobileMetricCard} ${stockBajo > 0 ? styles.mobileMetricCardRed : styles.mobileMetricCardGreen}`}>
                     <div className="flex items-center justify-between">
-                      <p className={`text-sm font-bold flex items-center gap-1 ${
-                        stockBajo > 0 ? 'text-red-800' : 'text-green-800'
-                      }`}>
-                        <AlertTriangle className={`w-3.5 h-3.5 ${stockBajo > 0 ? 'animate-pulse' : ''}`} /> 
-                        {stockBajo > 0 ? '¡Atención!' : 'Stock OK'}
+                      <p className={`${styles.metricLabel} ${stockBajo > 0 ? 'text-red-800' : 'text-green-800'}`}>
+                        <AlertTriangle className={`w-4 h-4 ${stockBajo > 0 ? 'animate-pulse' : ''}`} /> Alertas
                       </p>
-                      {stockBajo > 0 && (
-                        <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full animate-pulse">
-                          ¡Atención!
-                        </span>
-                      )}
+                      {stockBajo > 0 && <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full animate-pulse">¡Atención!</span>}
                     </div>
-                    
-                    {stockBajo > 0 ? (
-                      <div className="mt-2 flex-1 overflow-y-auto pr-1 space-y-1">
-                        {productosEnRiesgo.slice(0, 3).map(p => (
-                          <div key={p.id} className="flex justify-between items-center">
-                            <span className="text-[11px] font-semibold text-red-900 truncate pr-2">
-                              {p.nombre}
-                            </span>
-                            <span className="text-[10px] font-bold text-red-700 whitespace-nowrap">
-                              {p.stock} unid.
-                            </span>
-                          </div>
-                        ))}
-                        {productosEnRiesgo.length > 3 && (
-                          <p className="text-red-600 text-[9px] font-semibold text-center mt-1">
-                            +{productosEnRiesgo.length - 3} productos más
-                          </p>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="mt-2 flex-1 flex items-center justify-center">
-                        <p className="text-sm text-green-800 font-medium">Todo en orden</p>
-                      </div>
-                    )}
+                    <p className={`${styles.metricValue} ${stockBajo > 0 ? 'text-red-600' : 'text-green-600'}`}>{stockBajo}</p>
                   </button>
                 </div>
               </div>
 
-              <div className="hidden sm:grid sm:grid-cols-3 gap-4">
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                  <p className="text-lg text-gray-600 font-medium">Mis Productos</p>
-                  <p className="text-4xl font-bold text-gray-800 mt-2">{totalProductos}</p>
+              <div className={styles.quickGrid}>
+                <button onClick={() => irA('sales')} className={`${styles.quickCard} ${styles.quickCardGreen}`}>
+                  <ShoppingCart className="w-6 h-6" /> Vender
+                </button>
+                <button onClick={() => { setShowForm(true); setEditId(null); }} className={`${styles.quickCard} ${styles.quickCardBlue}`}>
+                  <Plus className="w-6 h-6" /> Agregar
+                </button>
+                <button onClick={() => irA('pedidos')} className={`${styles.quickCard} ${styles.quickCardAmber}`}>
+                  <ShoppingBag className="w-6 h-6" /> Pedidos {pedidosCount > 0 ? `(${pedidosCount})` : ''}
+                </button>
+              </div>
+
+              <div className={styles.todayCard}>
+                <p className={styles.todayTitle}>📅 Hoy en tu local</p>
+                <div className={styles.todayRow}>
+                  <div className={styles.todayCell}>
+                    <p className={styles.todayValue}>{fmt(ventasHoy.monto)}</p>
+                    <p className={styles.todayHint}>{ventasHoy.count} venta(s)</p>
+                  </div>
+                  <div className={styles.todayCell}>
+                    <p className={styles.todayValue}>{pedidosCount}</p>
+                    <p className={styles.todayHint}>pedidos pendientes</p>
+                  </div>
+                  <div className={styles.todayCell}>
+                    <p className={`${styles.todayValue} ${stockBajo > 0 ? 'text-red-600' : 'text-green-600'}`}>{stockBajo}</p>
+                    <p className={styles.todayHint}>stock bajo</p>
+                  </div>
                 </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                  <p className="text-lg text-gray-600 font-medium">Stock Disponible</p>
-                  <p className="text-4xl font-bold text-blue-600 mt-2">{totalStock}</p>
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                  <p className="text-lg text-gray-600 font-medium flex items-center gap-2">
-                    <AlertTriangle className="w-6 h-6 text-red-500" /> Alertas de Stock
-                  </p>
-                  
-                  {stockBajo === 0 ? (
-                    <p className="text-2xl font-bold text-green-600 mt-2">Todo en orden</p>
-                  ) : (
-                    <div className="mt-3 max-h-48 overflow-y-auto pr-2 space-y-2">
-                      {productosEnRiesgo.map(p => (
-                        <div 
-                          key={p.id} 
-                          className={`flex justify-between items-center p-2 rounded-lg ${
-                            p.stock === 0 
-                              ? 'bg-red-100 border border-red-300' 
-                              : 'bg-orange-50 border border-orange-200'
-                          }`}
-                        >
+              </div>
+            </div>
+
+            {/* ----- DESKTOP ----- */}
+            <div className="hidden sm:block">
+              <div className={styles.metricsGrid}>
+                <button onClick={() => irA('inventario')} className={styles.metricCard}>
+                  <p className={styles.metricLabel}>Mis Productos</p>
+                  <p className={styles.metricValue}>{totalProductos}</p>
+                  <p className={styles.metricHint}>Tocá para ver el inventario</p>
+                </button>
+                <button onClick={() => irA('inventario')} className={styles.metricCard}>
+                  <p className={styles.metricLabel}>Stock Disponible</p>
+                  <p className={styles.metricValueBlue}>{totalStock}</p>
+                  <p className={styles.metricHint}>unidades en inventario</p>
+                </button>
+                <button onClick={irAStockBajo} className={styles.metricCard}>
+                  <p className={styles.metricLabel}><AlertTriangle className="w-6 h-6 text-red-500" /> Alertas de Stock</p>
+                  {stockBajo === 0 ? <p className={styles.alertOk}>Todo en orden</p> : (
+                    <div className={styles.alertList}>
+                      {productosEnRiesgo.slice(0, 5).map(p => (
+                        <div key={p.id} className={`${styles.alertItem} ${p.stock === 0 ? styles.alertItemDanger : styles.alertItemWarning}`}>
                           <div className="flex-1 min-w-0">
-                            <p className={`font-semibold text-sm truncate ${
-                              p.stock === 0 ? 'text-red-800' : 'text-orange-800'
-                            }`}>
-                              {p.nombre}
-                            </p>
-                            <p className="text-xs text-gray-600">
-                              {p.categoria} • {p.talle || 'N/A'}
-                            </p>
+                            <p className={`${styles.alertItemName} ${p.stock === 0 ? styles.alertItemNameDanger : styles.alertItemNameWarning}`}>{p.nombre}</p>
+                            <p className={styles.alertItemMeta}>{p.categoria} • {p.talle || 'N/A'}</p>
                           </div>
-                          <div className="text-right ml-2">
-                            <span className={`font-bold text-lg ${
-                              p.stock === 0 ? 'text-red-600' : 'text-orange-600'
-                            }`}>
-                              {p.stock}
-                            </span>
-                            <p className="text-xs text-gray-500">
-                              {p.stock === 0 ? 'Agotado' : 'unidades'}
-                            </p>
-                          </div>
+                          <span className={`${styles.alertItemStock} ${p.stock === 0 ? styles.alertItemStockDanger : styles.alertItemStockWarning}`}>{p.stock}</span>
                         </div>
                       ))}
                     </div>
                   )}
+                </button>
+              </div>
+
+              <div className={styles.quickRow}>
+                <button onClick={() => irA('sales')} className={`${styles.quickBtn} ${styles.quickBtnGreen}`}>
+                  <ShoppingCart className="w-5 h-5" /> Registrar venta
+                </button>
+                <button onClick={() => { setShowForm(true); setEditId(null); }} className={`${styles.quickBtn} ${styles.quickBtnBlue}`}>
+                  <Plus className="w-5 h-5" /> Agregar producto
+                </button>
+                <button onClick={() => irA('pedidos')} className={`${styles.quickBtn} ${styles.quickBtnAmber}`}>
+                  <ShoppingBag className="w-5 h-5" /> Ver pedidos
+                  {pedidosCount > 0 && <span className={styles.quickBadge}>{pedidosCount}</span>}
+                </button>
+              </div>
+
+              <div className={styles.todayCard}>
+                <p className={styles.todayTitle}>📅 Hoy en tu local</p>
+                <div className={styles.todayRow}>
+                  <div className={styles.todayCell}>
+                    <p className={styles.todayValue}>{fmt(ventasHoy.monto)}</p>
+                    <p className={styles.todayHint}>{ventasHoy.count} venta(s) registradas</p>
+                  </div>
+                  <div className={styles.todayCell}>
+                    <p className={styles.todayValue}>{pedidosCount}</p>
+                    <p className={styles.todayHint}>pedidos web pendientes</p>
+                  </div>
+                  <div className={styles.todayCell}>
+                    <p className={`${styles.todayValue} ${stockBajo > 0 ? 'text-red-600' : 'text-green-600'}`}>{stockBajo}</p>
+                    <p className={styles.todayHint}>productos con stock bajo</p>
+                  </div>
                 </div>
               </div>
             </div>
+          </>
+        ) : null}
 
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <div className="relative flex-1 max-w-md w-full group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-blue-600 transition-colors duration-200" />
-                <input
-                  type="text"
-                  placeholder="Buscar producto..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 border-2 border-gray-300 rounded-xl text-base bg-white
-                            focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 
-                            hover:border-gray-400 transition-all duration-200"
-                />
+        {/* ============ VISTA INVENTARIO ============ */}
+        {currentView === 'inventario' ? (
+          <>
+            <div className={styles.filterBar}>
+              <div className={styles.searchWrap}>
+                <Search className={styles.searchIcon} />
+                <input type="text" placeholder="Buscar producto..." value={search} onChange={(e) => setSearch(e.target.value)} className={styles.searchInput} />
               </div>
-              <button
-                onClick={() => { setShowForm(true); setEditId(null); }}
-                className="btn btn-primary w-full sm:w-auto"
-              >
-                <Plus className="w-6 h-6" /> Agregar Producto
+              <select value={filtroCat} onChange={(e) => setFiltroCat(e.target.value)} className={styles.filterSelect}>
+                <option value="todas">Todas las categorías</option>
+                {categorias.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <button onClick={() => setSoloStockBajo(v => !v)} className={`${styles.filterCheck} ${soloStockBajo ? styles.filterCheckActive : ''}`}>
+                <AlertTriangle className="w-4 h-4" />
+                <span className="hidden sm:inline">Stock bajo</span>
+                <span className="sm:hidden">Stock</span>
+              </button>
+              <button onClick={() => { setShowForm(true); setEditId(null); }} className="btn btn-primary">
+                <Plus className="w-5 h-5" /> Agregar
               </button>
             </div>
 
-            <div className="product-cards-mobile">
-              {loading ? <div className="loading-state">Cargando productos...</div> : 
+            <div className={styles.listToolbar}>
+              <p className={styles.listCount}>{filteredProductos.length} producto(s)</p>
+              {!modoSeleccion ? (
+                <button onClick={() => setModoSeleccion(true)} className={styles.selectBtn}>
+                  <CheckCircle2 className="w-4 h-4" /> Seleccionar
+                </button>
+              ) : (
+                <button onClick={() => setSeleccion(seleccion.length === productosMostrados.length ? [] : productosMostrados.map(p => p.id))} className={styles.selectBtn}>
+                  {seleccion.length === productosMostrados.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
+                </button>
+              )}
+            </div>
+
+            {/* hint con 0 seleccionados (no tapa nada) */}
+            {modoSeleccion && seleccion.length === 0 && (
+              <div className={styles.selectHint}>
+                <span>Tocá productos para seleccionarlos</span>
+                <button onClick={salirDeSeleccion} className={styles.hintClose} aria-label="Salir del modo selección">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* LISTA MOBILE */}
+            <div className={styles.mobileList}>
+              {loading ? <div className="loading-state">Cargando productos...</div> :
                 filteredProductos.length === 0 ? (
-                  <div className="empty-state">{search ? 'No se encontraron productos.' : 'No hay productos. ¡Agrega el primero!'}</div>
+                  <div className="empty-state">{search || filtroCat !== 'todas' || soloStockBajo ? 'No se encontraron productos con esos filtros.' : 'No hay productos. ¡Agrega el primero!'}</div>
                 ) : (
                   productosMostrados.map((p) => (
-                    <div key={p.id} className="product-card">
-                      {p.imagen_url ? (
-                        <div 
-                          onClick={() => setSelectedImage(p.imagen_url)}
-                          className="relative cursor-pointer active:scale-95 transition-transform duration-200"
-                          style={{ marginBottom: '12px', borderRadius: '12px', overflow: 'hidden', background: '#f3f4f6' }}
-                        >
-                          <img 
-                            src={p.imagen_url} 
-                            alt={p.nombre} 
-                            style={{ width: '100%', height: '180px', objectFit: 'cover', display: 'block' }} 
-                            onError={(e) => { e.target.style.display = 'none'; }} 
-                          />
-                          <div className="absolute top-2 right-2 bg-black bg-opacity-40 rounded-full p-1.5 opacity-0 hover:opacity-100 transition-opacity">
-                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                            </svg>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ marginBottom: '12px', borderRadius: '12px', overflow: 'hidden', background: '#f3f4f6', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>
-                          <Package className="w-12 h-12" />
-                        </div>
+                    <div
+                      key={p.id}
+                      className={`${styles.mobileRow} ${seleccion.includes(p.id) ? styles.mobileRowSelected : ''}`}
+                      onClick={() => modoSeleccion && toggleSeleccion(p.id)}
+                    >
+                      <div className={styles.thumbWrap}>
+                        {p.imagen_url ? (
+                          <img src={p.imagen_url} alt={p.nombre} className={styles.mobileThumb} onClick={() => !modoSeleccion && setSelectedImage(p.imagen_url)} onError={(e) => { e.target.style.display = 'none' }} />
+                        ) : (
+                          <div className={styles.mobileThumb}><Package className="w-6 h-6" /></div>
+                        )}
+                        <CheckOverlay id={p.id} />
+                      </div>
+                      <div className={styles.mobileInfo}>
+                        <p className={styles.mobileName}>{p.nombre}</p>
+                        <p className={styles.mobileMeta}>{p.categoria || 'Sin categoría'} · {p.talle || '-'}</p>
+                        <p className={styles.mobilePrice}>{fmt(p.precio)}</p>
+                      </div>
+                      <span className={`stock-badge ${p.stock <= 5 ? 'stock-low' : 'stock-ok'}`}>{p.stock}</span>
+                      {!modoSeleccion && (
+                        <>
+                          <button onClick={() => setMenuAbiertoId(menuAbiertoId === p.id ? null : p.id)} className={`${styles.kebab} ${menuAbiertoId === p.id ? styles.kebabOpen : ''}`}>
+                            <MoreVertical className="w-5 h-5" />
+                          </button>
+                          {menuAbiertoId === p.id && (
+                            <div className={styles.kebabMenu}>
+                              <button className={styles.kebabItem} onClick={() => { setMenuAbiertoId(null); vender(p) }}>
+                                <ShoppingCart className="w-4 h-4" /> Vender
+                              </button>
+                              <button className={styles.kebabItem} onClick={() => { setMenuAbiertoId(null); handleWebToggle(p) }}>
+                                <Globe className="w-4 h-4" /> {p.web_estado === 'publicado' ? 'Quitar de la web' : 'Enviar a la web'}
+                              </button>
+                              <button className={styles.kebabItem} onClick={() => { setMenuAbiertoId(null); setShowForm(true); setEditId(p.id) }}>
+                                <Edit2 className="w-4 h-4" /> Editar
+                              </button>
+                              <button className={`${styles.kebabItem} ${styles.kebabItemDanger}`} onClick={() => { setMenuAbiertoId(null); handleDelete(p.id) }}>
+                                <Trash2 className="w-4 h-4" /> Desactivar
+                              </button>
+                            </div>
+                          )}
+                        </>
                       )}
-                      <div className="product-card-header">
-                        <div>
-                          <h3 className="product-card-title">{p.nombre}</h3>
-                          <p className="product-card-meta">{p.categoria || 'Sin categoría'}</p>
-                        </div>
-                        {/* ✅ NUEVO: botón web + badge stock */}
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleWebToggle(p)}
-                            className={`w-9 h-9 rounded-full flex items-center justify-center transition ${getWebButtonStyle(p.web_estado || 'no_enviado').cls}`}
-                            title={getWebButtonStyle(p.web_estado || 'no_enviado').title}
-                          >
-                            <Globe className="w-4 h-4" />
-                          </button>
-                          <span className={`stock-badge ${p.stock <= 5 ? 'stock-low' : 'stock-ok'}`}>Stock: {p.stock}</span>
-                        </div>
-                      </div>
-                      <div className="product-card-details">
-                        <div className="detail-item">Talle: <span>{p.talle || '-'}</span></div>
-                        <div className="detail-item">Color: <span>{p.color || '-'}</span></div>
-                      </div>
-                      <div className="product-card-footer">
-                        <div className="product-price">${Number(p.precio).toFixed(2)}</div>
-                        <div style={{ display: 'flex', gap: '8px', width: '100%', marginTop: '8px' }}>
-                          <button onClick={() => { addToCartFromDashboard(p); setAddedToCart(p.id); setTimeout(() => setAddedToCart(null), 2000); }} className="btn btn-success touch-target" style={{ flex: 1, position: 'relative', background: addedToCart === p.id ? '#16a34a' : '#22c55e' }} disabled={p.stock <= 0}>
-                            <ShoppingCart size={18} /> {addedToCart === p.id ? 'Agregado' : 'Vender'}
-                          </button>
-                          <button onClick={() => { setShowForm(true); setEditId(p.id); }} className="btn btn-secondary touch-target" style={{ flex: 1 }}>
-                            <Edit2 size={18} /> Editar
-                          </button>
-                          <button onClick={() => handleDelete(p.id)} className="btn btn-danger touch-target" style={{ flex: 1 }}>
-                            <Trash2 size={18} /> Desactivar
-                          </button>
-                        </div>
-                      </div>
                     </div>
                   ))
                 )
               }
             </div>
 
-            <div className="product-table-desktop bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
-              {loading ? <div className="loading-state">Cargando productos...</div> : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-max">
-                    <thead className="bg-gray-100 border-b-2 border-gray-200">
+            {/* TABLA DESKTOP */}
+            <div className={styles.tableWrap}>
+              <div className={styles.tableCard}>
+                <div className={styles.tableScroll}>
+                  <table className={styles.table}>
+                    <thead>
                       <tr>
-                        <th className="px-6 py-4 text-left text-base font-bold text-gray-700 uppercase">Imagen</th>
-                        {['Nombre', 'Categoría', 'Talle', 'Color', 'Precio', 'Stock', 'Acciones'].map(h => (
-                          <th key={h} className="px-6 py-4 text-left text-base font-bold text-gray-700 uppercase">{h}</th>
-                        ))}
+                        <th>Imagen</th>
+                        <th>Nombre</th>
+                        <th>Categoría</th>
+                        <th>Precio</th>
+                        <th>Stock</th>
+                        <th>Web</th>
+                        <th className={styles.stickyHead}>Acciones</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {productosMostrados.map((p) => (
-                        <tr key={p.id} className="hover:bg-blue-50 transition">
-                          <td className="px-6 py-4">
-                            {p.imagen_url ? (
-                              <img 
-                                src={p.imagen_url} 
-                                alt={p.nombre} 
-                                style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '8px', cursor: 'pointer' }} 
-                                onClick={() => setSelectedImage(p.imagen_url)}
-                                onError={(e) => { e.target.style.display = 'none'; }} 
-                              />
-                            ) : (
-                              <div style={{ width: '50px', height: '50px', background: '#f3f4f6', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Package className="w-6 h-6 text-gray-400" />
+                    <tbody>
+                      {loading ? (
+                        <tr><td colSpan="7"><div className="loading-state">Cargando productos...</div></td></tr>
+                      ) : filteredProductos.length === 0 ? (
+                        <tr><td colSpan="7" style={{ textAlign: 'center', padding: '3rem', color: '#6b7280' }}>No se encontraron productos.</td></tr>
+                      ) : (
+                        productosMostrados.map((p) => (
+                          <tr key={p.id} onClick={() => modoSeleccion && toggleSeleccion(p.id)} style={modoSeleccion ? { cursor: 'pointer' } : undefined}>
+                            <td>
+                              <div className={styles.thumbWrap}>
+                                {p.imagen_url ? (
+                                  <img src={p.imagen_url} alt={p.nombre} className={styles.thumbCell} onClick={() => !modoSeleccion && setSelectedImage(p.imagen_url)} onError={(e) => { e.target.style.display = 'none' }} />
+                                ) : (
+                                  <div className={styles.thumbCell}><Package className="w-6 h-6" /></div>
+                                )}
+                                <CheckOverlay id={p.id} />
                               </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 font-bold text-gray-900 text-lg">{p.nombre}</td>
-                          <td className="px-6 py-4 text-gray-700 text-lg">{p.categoria || '-'}</td>
-                          <td className="px-6 py-4 text-gray-700 text-lg">{p.talle || '-'}</td>
-                          <td className="px-6 py-4 text-gray-700 text-lg">{p.color || '-'}</td>
-                          <td className="px-6 py-4 text-gray-900 font-bold text-lg">${Number(p.precio).toFixed(2)}</td>
-                          <td className="px-6 py-4">
-                            {/* ✅ NUEVO: botón web + badge stock */}
-                            <div className="flex items-center gap-2">
+                            </td>
+                            <td>
+                              <p className={styles.nameCell}>{p.nombre}</p>
+                              <p className={styles.nameMeta}>{p.talle || '-'} · {p.color || '-'}</p>
+                            </td>
+                            <td>{p.categoria || '-'}</td>
+                            <td className={styles.priceCell}>{fmt(p.precio)}</td>
+                            <td><span className={`stock-badge ${p.stock <= 5 ? 'stock-low' : 'stock-ok'}`}>{p.stock}</span></td>
+                            <td>
                               <button
-                                onClick={() => handleWebToggle(p)}
+                                onClick={(e) => { e.stopPropagation(); handleWebToggle(p) }}
                                 className={`w-8 h-8 rounded-full flex items-center justify-center transition ${getWebButtonStyle(p.web_estado || 'no_enviado').cls}`}
                                 title={getWebButtonStyle(p.web_estado || 'no_enviado').title}
                               >
                                 <Globe className="w-4 h-4" />
                               </button>
-                              <span className={`stock-badge ${p.stock <= 5 ? 'stock-low' : 'stock-ok'}`}>{p.stock}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2 justify-end">
-                              <button onClick={() => { addToCartFromDashboard(p); setAddedToCart(p.id); setTimeout(() => setAddedToCart(null), 2000); }} className="btn btn-success touch-target" disabled={p.stock <= 0} title="Agregar al carrito">
-                                <ShoppingCart className="w-4 h-4" />
-                              </button>
-                              <button onClick={() => { setShowForm(true); setEditId(p.id); }} className="btn btn-secondary touch-target" title="Editar producto">
-                                <Edit2 className="w-5 h-5" />
-                              </button>
-                              <button onClick={() => handleDelete(p.id)} className="btn btn-danger touch-target" title="Eliminar producto">
-                                <Trash2 className="w-5 h-5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                      {filteredProductos.length === 0 && (
-                        <tr><td colSpan="8" className="px-6 py-12 text-center text-gray-500 text-xl">No se encontraron productos.</td></tr>
+                            </td>
+                            <td className={styles.stickyCell}>
+                              <div className={styles.actionCell}>
+                                <button onClick={(e) => { e.stopPropagation(); vender(p) }} className="btn btn-success touch-target" disabled={p.stock <= 0} title="Vender">
+                                  <ShoppingCart className="w-4 h-4" />
+                                </button>
+                                <button onClick={(e) => { e.stopPropagation(); setShowForm(true); setEditId(p.id); }} className="btn btn-secondary touch-target" title="Editar">
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id) }} className="btn btn-danger touch-target" title="Desactivar">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
                       )}
                     </tbody>
                   </table>
                 </div>
-              )}
+              </div>
             </div>
 
             {!loading && filteredProductos.length > 0 && (
-              <div className="mt-4 mb-6 px-4 py-4 bg-white rounded-xl shadow-sm border border-gray-200">
-                <p className="text-center text-sm text-gray-600 mb-3">
-                  Mostrando {Math.min(cantidadVisible, filteredProductos.length)} de {filteredProductos.length} productos
-                </p>
+              <div className={styles.paginationCard}>
+                <p className={styles.paginationText}>Mostrando {Math.min(cantidadVisible, filteredProductos.length)} de {filteredProductos.length} productos</p>
                 {filteredProductos.length > cantidadVisible && (
-                  <button
-                    onClick={() => setCantidadVisible(c => c + PASO)}
-                    className="w-full py-3 rounded-xl border-2 border-blue-600 text-blue-600 font-semibold hover:bg-blue-50 active:scale-95 transition-all duration-200"
-                  >
+                  <button onClick={() => setCantidadVisible(c => c + PASO)} className={styles.paginationBtn}>
                     Ver más ({filteredProductos.length - cantidadVisible} restantes)
                   </button>
                 )}
@@ -717,9 +678,9 @@ useEffect(() => {
             </div>
 
             {showInactive && (
-              <div className="bg-gray-100 rounded-xl shadow-sm border border-gray-300 overflow-hidden mt-6">
-                <div className="p-4 bg-gray-200 border-b border-gray-300">
-                  <h3 className="text-lg font-bold text-gray-700 flex items-center gap-2"><RotateCcw className="w-5 h-5" /> Productos Desactivados</h3>
+              <div className={styles.inactiveWrap}>
+                <div className={styles.inactiveHeader}>
+                  <h3 className={styles.inactiveTitle}><RotateCcw className="w-5 h-5" /> Productos Desactivados</h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-max">
@@ -748,7 +709,10 @@ useEffect(() => {
               </div>
             )}
           </>
-        ) : currentView === 'sales' ? (
+        ) : null}
+
+        {/* ============ OTRAS VISTAS ============ */}
+        {currentView === 'sales' ? (
           <SalesForm onSaleRecorded={fetchProductos} productos={productos} cart={cart} setCart={setCart} />
         ) : currentView === 'history' ? (
           <SalesHistory />
@@ -756,151 +720,113 @@ useEffect(() => {
           <ClientesView />
         ) : currentView === 'metrics' ? (
           <MetricsView onNavigate={setCurrentView} />
-         ) : currentView === 'gastos' ? (
+        ) : currentView === 'gastos' ? (
           <GastosView />
-          ) : currentView === 'pedidos' ? (
+        ) : currentView === 'pedidos' ? (
           <PedidosWebView onCambios={fetchPedidosCount} />
         ) : currentView === 'profile' ? (
           <ProfileView />
         ) : null}
       </main>
 
+      {/* ============ BARRA DE SELECCIÓN (solo con 1+) ============ */}
+      {modoSeleccion && seleccion.length > 0 && (
+        <div className={styles.selectionBar}>
+          <span className={styles.selectionCount}>{seleccion.length}</span>
+          <button onClick={enviarSeleccion} className={styles.selectionSend}>
+            <Globe className="w-4 h-4" /> <span className="hidden sm:inline">Enviar a la web</span><span className="sm:hidden">Enviar</span>
+          </button>
+          <button onClick={desactivarSeleccion} className={styles.selectionDanger} title="Desactivar seleccionados">
+            <Trash2 className="w-5 h-5" />
+          </button>
+          <button onClick={salirDeSeleccion} className={styles.selectionCancel} aria-label="Cancelar selección">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
+      {/* ============ BOTTOM NAV MOBILE ============ */}
       <nav id="bottom-nav" className="bottom-nav">
-        <button onClick={() => { setCurrentView('dashboard'); setShowMoreMenu(false); }} className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`}>
+        <button onClick={() => irA('home')} className={`nav-item ${currentView === 'home' ? 'active' : ''}`}>
+          <Home className="w-6 h-6" /> <span>Inicio</span>
+        </button>
+        <button onClick={() => irA('inventario')} className={`nav-item ${currentView === 'inventario' ? 'active' : ''}`}>
           <Package className="w-6 h-6" /> <span>Inventario</span>
         </button>
-        <button onClick={() => { setCurrentView('sales'); setShowMoreMenu(false); }} className={`nav-item ${currentView === 'sales' ? 'active' : ''}`}>
+        <button onClick={() => irA('sales')} className={`nav-item ${currentView === 'sales' ? 'active' : ''}`}>
           <div className="flex items-center gap-1">
             <ShoppingCart className="w-6 h-6" />
-            {cart.length > 0 && (
-              <span className="bg-green-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                {cart.length}
-              </span>
-            )}
+            {cart.length > 0 && <span className="bg-green-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{cart.length}</span>}
           </div>
           <span>Ventas</span>
         </button>
-        <button onClick={() => { setCurrentView('history'); setShowMoreMenu(false); }} className={`nav-item ${currentView === 'history' ? 'active' : ''}`}>
-          <BarChart3 className="w-6 h-6" /> <span>Historial</span>
+        <button onClick={() => setDrawerOpen(true)} className={`nav-item ${drawerOpen ? 'active' : ''}`}>
+          <MoreVertical className="w-6 h-6" /> <span>Más</span>
         </button>
-        
-        <button onClick={() => setShowMoreMenu(!showMoreMenu)} className={`nav-item ${showMoreMenu ? 'active' : ''}`}>
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-          </svg>
-          <span>Más</span>
-        </button>
-
-                {showMoreMenu && (
-          <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
-            <button
-              onClick={() => { setCurrentView('profile'); setShowMoreMenu(false); }}
-              className="w-full text-left px-5 py-4 text-gray-700 hover:bg-blue-50 flex items-center gap-3 border-b border-gray-100"
-            >
-              <User className="w-6 h-6 text-blue-600" />
-              <div>
-                <p className="font-semibold">Mi cuenta</p>
-                <p className="text-xs text-gray-500">Perfil, web y contraseña</p>
-              </div>
-            </button>
-            <button 
-              onClick={() => { setCurrentView('clientes'); setShowMoreMenu(false); }}
-              className="w-full text-left px-5 py-4 text-gray-700 hover:bg-blue-50 flex items-center gap-3 border-b border-gray-100"
-            >
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              <div>
-                <p className="font-semibold">Clientes</p>
-                <p className="text-xs text-gray-500">Deudas y pagos</p>
-              </div>
-            </button>
-
-<button 
-  onClick={() => { setCurrentView('gastos'); setShowMoreMenu(false); }}
-  className="w-full text-left px-5 py-4 text-gray-700 hover:bg-blue-50 flex items-center gap-3 border-b border-gray-100"
->
-  <DollarSign className="w-6 h-6 text-red-600" />
-  <div>
-    <p className="font-semibold">Gastos</p>
-    <p className="text-xs text-gray-500">Egresos del local</p>
-  </div>
-</button>
-
-
-
- <button
-              onClick={() => { setCurrentView('pedidos'); setShowMoreMenu(false); }}
-              className="w-full text-left px-5 py-4 text-gray-700 hover:bg-blue-50 flex items-center gap-3 border-b border-gray-100"
-            >
-              <ShoppingBag className="w-6 h-6 text-red-600" />
-              <div>
-                <p className="font-semibold">Pedidos web</p>
-                <p className="text-xs text-gray-500">Compras de tu vidriera</p>
-              </div>
-            </button>
-
-            <button 
-              onClick={() => { setCurrentView('metrics'); setShowMoreMenu(false); }}
-              className="w-full text-left px-5 py-4 text-gray-700 hover:bg-blue-50 flex items-center gap-3"
-            >
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              <div>
-                <p className="font-semibold">Métricas</p>
-                <p className="text-xs text-gray-500">Estadísticas y reportes</p>
-              </div>
-            </button>
-          </div>
-        )}
       </nav>
 
+      {/* ============ DRAWER DERECHO ============ */}
+      {drawerOpen && (
+        <>
+          <div className={styles.drawerOverlay} onClick={() => setDrawerOpen(false)} />
+          <aside className={styles.drawer}>
+            <div className={styles.drawerHeader}>
+              <span className={styles.drawerTitle}>Menú</span>
+              <button onClick={() => setDrawerOpen(false)} className={styles.hamburgerBtn}><X className="w-5 h-5" /></button>
+            </div>
+            <div className={styles.drawerBody}>
+              <button onClick={() => irA('history')} className={styles.drawerItem}>
+                <BarChart3 className="w-6 h-6 text-blue-600" />
+                <div><p className={styles.drawerItemTitle}>Historial</p><p className={styles.drawerItemHint}>Ventas registradas</p></div>
+              </button>
+              <button onClick={() => irA('pedidos')} className={styles.drawerItem}>
+                <ShoppingBag className="w-6 h-6 text-red-600" />
+                <div><p className={styles.drawerItemTitle}>Pedidos web {pedidosCount > 0 && `(${pedidosCount})`}</p><p className={styles.drawerItemHint}>Compras de tu vidriera</p></div>
+              </button>
+              <button onClick={() => irA('clientes')} className={styles.drawerItem}>
+                <User className="w-6 h-6 text-blue-600" />
+                <div><p className={styles.drawerItemTitle}>Clientes</p><p className={styles.drawerItemHint}>Deudas y pagos</p></div>
+              </button>
+              <button onClick={() => irA('metrics')} className={styles.drawerItem}>
+                <BarChart3 className="w-6 h-6 text-green-600" />
+                <div><p className={styles.drawerItemTitle}>Métricas</p><p className={styles.drawerItemHint}>Estadísticas y reportes</p></div>
+              </button>
+              <button onClick={() => irA('gastos')} className={styles.drawerItem}>
+                <DollarSign className="w-6 h-6 text-red-600" />
+                <div><p className={styles.drawerItemTitle}>Gastos</p><p className={styles.drawerItemHint}>Egresos del local</p></div>
+              </button>
+              <button onClick={() => irA('profile')} className={styles.drawerItem}>
+                <User className="w-6 h-6 text-blue-600" />
+                <div><p className={styles.drawerItemTitle}>Mi cuenta</p><p className={styles.drawerItemHint}>Perfil, web y contraseña</p></div>
+              </button>
+              <button onClick={onLogout} className={styles.drawerItem}>
+                <LogOut className="w-6 h-6 text-red-600" />
+                <div><p className={`${styles.drawerItemTitle} text-red-600`}>Salir</p><p className={styles.drawerItemHint}>Cerrar sesión</p></div>
+              </button>
+            </div>
+          </aside>
+        </>
+      )}
+
+      {/* ============ MODALES Y FLOTANTES ============ */}
       {showForm && <ProductForm onClose={() => setShowForm(false)} editId={editId} onSave={fetchProductos} />}
       {showTutorial && <Tutorial onComplete={() => setShowTutorial(false)} />}
 
-      {/* ✅ NUEVO: BOTÓN SCROLL TO TOP */}
       {showScrollTop && (
-        <button
-          onClick={scrollToTop}
-          className="fixed bottom-24 right-4 z-40 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-full p-4 shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4"
-          style={{
-            width: '56px',
-            height: '56px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-          title="Subir arriba"
-        >
+        <button onClick={scrollToTop} className={styles.scrollTopBtn} title="Subir arriba">
           <ChevronUp className="w-6 h-6" />
         </button>
       )}
 
       {selectedImage && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-90 z-[100] flex items-center justify-center p-4 sm:hidden"
-          onClick={() => setSelectedImage(null)}
-        >
-          <button 
-            onClick={() => setSelectedImage(null)}
-            className="absolute top-4 right-4 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-full p-2 transition-all z-10"
-          >
+        <div className={styles.imageModal} onClick={() => setSelectedImage(null)}>
+          <button onClick={() => setSelectedImage(null)} className={styles.imageModalClose}>
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-
-          <img 
-            src={selectedImage} 
-            alt="Producto" 
-            className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-300"
-            onClick={(e) => e.stopPropagation()}
-          />
-
-          <p className="absolute bottom-8 text-white text-opacity-60 text-sm">
-            Tocá fuera para cerrar
-          </p>
+          <img src={selectedImage} alt="Producto" className={styles.imageModalImg} onClick={(e) => e.stopPropagation()} />
+          <p className={styles.imageModalHint}>Tocá fuera para cerrar</p>
         </div>
       )}
     </div>

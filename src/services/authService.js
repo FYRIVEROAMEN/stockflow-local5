@@ -43,6 +43,30 @@ export const getProfile = async (userId) => {
   return data
 }
 
+// ✅ NUEVO: Actualizar nombre del dueño (profiles)
+export const updateNombreProfile = async (userId, nombre) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ nombre: nombre.trim() || null })
+    .eq('id', userId)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+// ✅ NUEVO: Actualizar nombre del local (locales)
+export const updateNombreLocal = async (localId, nombre) => {
+  const { data, error } = await supabase
+    .from('locales')
+    .update({ nombre: nombre.trim() || null })
+    .eq('id', localId)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
 // Activar web (solo owner)
 export const activarWeb = async () => {
   const { data: { session } } = await supabase.auth.getSession()

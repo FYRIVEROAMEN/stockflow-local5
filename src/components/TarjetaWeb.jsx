@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Check, Copy, ExternalLink, Share2 } from 'lucide-react'
+import { Check, Copy, ExternalLink, Share2, Globe } from 'lucide-react'
 import { supabase } from '../services/authService'
 import { useAuth } from '../context/AuthContext'
 import { urlMiTienda } from '../utils/tenantUrl'
+import styles from './TarjetaWeb.module.css'
 
 export default function TarjetaWeb() {
   const { profile } = useAuth()
@@ -42,40 +43,27 @@ export default function TarjetaWeb() {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 mt-6">
-      <h3 className="font-semibold text-gray-700 mb-1">🌐 Tu vidriera web</h3>
-      <p className="text-sm text-gray-600 mb-3">
-        Dirección: <b>{host}</b>{' '}
-        <span className={`text-xs font-semibold ${webActiva ? 'text-green-600' : 'text-amber-600'}`}>
+    <div className={styles.wrap}>
+      <h3 className={styles.title}><Globe size={16} className="text-blue-600" /> Tu vidriera web</h3>
+      <p className={styles.hostRow}>
+        <b>{host}</b>{' '}
+        <span className={webActiva ? styles.hostOn : styles.hostOff}>
           · {webActiva ? 'ACTIVA' : 'CERRADA'}
         </span>
       </p>
-      <div className="flex flex-wrap gap-2">
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg px-3 py-2 flex items-center gap-2"
-        >
-          <ExternalLink size={15} /> Ver mi vidriera
+      <div className={styles.btnRow}>
+        <a href={url} target="_blank" rel="noopener noreferrer" className={styles.btnSec}>
+          <ExternalLink size={15} /> Ver
         </a>
-        <button
-          onClick={copiar}
-          className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg px-3 py-2 flex items-center gap-2"
-        >
-          {copiado ? <Check size={15} className="text-green-600" /> : <Copy size={15} />}
-          {copiado ? '¡Copiado!' : 'Copiar link'}
-        </button>
-        <button
-          onClick={compartirWhatsApp}
-          className="text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg px-3 py-2 flex items-center gap-2"
-        >
-          <Share2 size={15} /> Compartir por WhatsApp
+        <button onClick={copiar} className={`${styles.btnSec} ${copiado ? styles.btnSecOk : ''}`}>
+          {copiado ? <Check size={15} /> : <Copy size={15} />}
+          {copiado ? '¡Copiado!' : 'Copiar'}
         </button>
       </div>
-      <p className="text-xs text-gray-400 mt-3">
-        Mandale este link a tus clientes: entran directo a tu tienda.
-      </p>
+      <button onClick={compartirWhatsApp} className={styles.btnWa}>
+        <Share2 size={16} /> Compartir por WhatsApp
+      </button>
+      <p className={styles.hint}>Mandale este link a tus clientes: entran directo a tu tienda.</p>
     </div>
   )
 }
