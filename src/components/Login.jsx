@@ -2,10 +2,8 @@ import { useState } from 'react'
 import { AlertTriangle, Eye, EyeOff } from 'lucide-react'
 import { login } from '../services/authService'
 import { useAuth } from '../context/AuthContext'
+import logoMate from '../assets/MateLogoUtil.png'
 import styles from './Login.module.css'
-
-// ⚠️ Si tu logo se llama distinto, cambiá SOLO esta línea
-const LOGO = 'public/MateLogoUtil.png'
 
 function Login() {
   const { loginConGoogle } = useAuth()
@@ -45,9 +43,9 @@ function Login() {
       <div className={styles.formPanel}>
         <div className={styles.formCard}>
           <div className={styles.brand}>
-            <img src={LOGO} alt="Logo StockShop" className={styles.logoImg} />
+            <img src={logoMate} alt="Logo StockShop" className={styles.logoImg} />
             <h1 className={styles.title}>StockShop</h1>
-            <p className={styles.tagline}>El stock del local, en tu bolsillo 🇦</p>
+            <p className={styles.tagline}>Gestion + Ecommerce desde tu Celular </p>
           </div>
 
           <button type="button" onClick={handleGoogle} className={styles.googleBtn}>
@@ -111,20 +109,26 @@ function Login() {
             </button>
           </form>
 
-          <p className={styles.footer}>
-            ¿Problemas para entrar? <a href="mailto:soporte@stockshop.ar" className={styles.footerLink}>Escribinos</a>
-          </p>
+         <p className={styles.footer}>
+  ¿Problemas para entrar?{' '}
+  <a
+    href="https://www.stockshop.com.ar"
+    className={styles.footerLink}
+  >
+    Volvé al inicio
+  </a>
+</p>
         </div>
       </div>
 
       {/* ============ PANEL DERECHO: HERO DE MARCA ============ */}
       <div className={styles.heroPanel}>
-        <img src={LOGO} alt="" className={styles.heroLogo} aria-hidden="true" />
+        <img src={logoMate} alt="" className={styles.heroLogo} aria-hidden="true" />
         <div className={styles.heroContent}>
           <p className={styles.heroQuote}>
-            El que sabe de números, sabe del negocio. El que sabe de su stock, sabe de su gente.
+           “¿Seguís vendiendo por catálogo en PDF o mandando fotos por WhatsApp? Con StockShop creás tu tienda online en minutos y con stock en tiempo real.”.
           </p>
-          <p className={styles.heroAuthor}>— dicho de almacenero, versión digital</p>
+          <p className={styles.heroAuthor}>— A 3 clics de tener tu comercio digitalizado</p>
         </div>
       </div>
     </div>
