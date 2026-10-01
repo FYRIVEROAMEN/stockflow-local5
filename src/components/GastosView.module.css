@@ -1,0 +1,120 @@
+/* ============ LAYOUT ============ */
+.wrap { max-width: 60rem; margin: 0 auto; padding: 1rem; display: flex; flex-direction: column; gap: 1.25rem; }
+@media (min-width: 640px) { .wrap { padding: 2rem 1rem; } }
+
+/* ============ HEADER ============ */
+.headerRow { display: flex; flex-direction: column; gap: 0.5rem; }
+@media (min-width: 640px) { .headerRow { flex-direction: row; align-items: center; justify-content: space-between; } }
+.title { font-size: 1.5rem; font-weight: 700; color: #1f2937; }
+@media (min-width: 640px) { .title { font-size: 1.875rem; } }
+.subtitle { font-size: 0.8125rem; color: #6b7280; }
+.monthChip { display: inline-flex; align-items: center; gap: 0.5rem; background: white; border: 2px solid #e5e7eb; border-radius: 0.75rem; padding: 0.5rem 0.875rem; color: #374151; }
+.monthInput { border: none; background: transparent; font-size: 0.875rem; font-weight: 600; color: #374151; outline: none; font-family: inherit; }
+
+/* ============ HERO TOTAL ============ */
+.hero { border-radius: 1.25rem; border: 2px solid #fecaca; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); padding: 1.25rem; }
+@media (min-width: 640px) { .hero { padding: 1.5rem; } }
+.heroLabel { font-size: 0.8125rem; font-weight: 700; color: #991b1b; text-transform: capitalize; }
+.heroValue { font-size: 2rem; font-weight: 800; color: #7f1d1d; margin-top: 0.25rem; letter-spacing: -0.02em; }
+@media (min-width: 640px) { .heroValue { font-size: 2.5rem; } }
+.heroMeta { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8125rem; color: #b91c1c; margin-top: 0.375rem; flex-wrap: wrap; }
+.delta { display: inline-flex; align-items: center; gap: 0.25rem; font-weight: 700; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; }
+.deltaDown { background: #dcfce7; color: #15803d; }
+.deltaUp { background: #fee2e2; color: #b91c1c; }
+.deltaFlat { background: #f3f4f6; color: #4b5563; }
+
+/* ============ DESGLOSE POR CATEGORÍA ============ */
+.breakdownCard { background: white; border: 1px solid #e5e7eb; border-radius: 1rem; padding: 1.25rem; }
+.breakdownTitle { font-size: 0.9375rem; font-weight: 700; color: #1f2937; margin-bottom: 1rem; }
+.breakdownList { display: flex; flex-direction: column; gap: 0.875rem; }
+.catRow { display: flex; flex-direction: column; gap: 0.375rem; }
+.catTop { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.catLabel { display: flex; align-items: center; gap: 0.375rem; font-size: 0.875rem; color: #374151; min-width: 0; }
+.catEmoji { font-size: 1.125rem; }
+.catName { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.catAmount { font-weight: 700; color: #1f2937; white-space: nowrap; }
+.catBar { height: 0.5rem; background: #f3f4f6; border-radius: 9999px; overflow: hidden; }
+.catBarFill { height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); border-radius: 9999px; transition: width 0.4s ease; }
+.catPct { font-size: 0.6875rem; color: #6b7280; font-weight: 600; }
+.breakdownEmpty { text-align: center; color: #6b7280; padding: 1rem; font-size: 0.875rem; }
+
+/* ============ MOVIMIENTOS ============ */
+.movHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; gap: 0.5rem; }
+.movTitle { font-size: 0.9375rem; font-weight: 700; color: #1f2937; }
+.exportBtn { display: inline-flex; align-items: center; gap: 0.375rem; background: #f3f4f6; color: #374151; border: none; border-radius: 0.625rem; padding: 0.5rem 0.75rem; font-size: 0.8125rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+.exportBtn:hover { background: #e5e7eb; }
+.exportBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.movList { display: flex; flex-direction: column; gap: 0.5rem; }
+.movRow { display: flex; align-items: flex-start; gap: 0.75rem; background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 0.75rem; }
+.movIcon { width: 2.5rem; height: 2.5rem; border-radius: 9999px; background: #fef2f2; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; }
+.movInfo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.125rem; }
+.movName { font-size: 0.875rem; font-weight: 600; color: #1f2937; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.movLine { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.movSub { font-size: 0.75rem; color: #6b7280; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.movNote { font-size: 0.6875rem; color: #9ca3af; font-style: italic; margin-top: 0.125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.movAmount { font-size: 0.9375rem; font-weight: 700; color: #b91c1c; white-space: nowrap; flex-shrink: 0; }
+
+/* ⋮ del movimiento */
+.kebabWrap { position: relative; flex-shrink: 0; }
+.kebabBtn { background: #f3f4f6; border: none; color: #6b7280; padding: 0.375rem; border-radius: 9999px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.kebabBtn:hover { background: #e5e7eb; }
+.kebabMenu { position: absolute; right: 0; top: 2.25rem; z-index: 20; background: white; border: 1px solid #e5e7eb; border-radius: 0.625rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.15); min-width: 9rem; overflow: hidden; animation: fadeIn 0.15s ease; }
+.kebabItem { display: flex; align-items: center; gap: 0.5rem; width: 100%; text-align: left; padding: 0.625rem 0.875rem; font-size: 0.875rem; color: #dc2626; background: transparent; border: none; cursor: pointer; }
+.kebabItem:hover { background: #fef2f2; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+.emptyState { text-align: center; color: #6b7280; padding: 2rem 1rem; background: #f9fafb; border: 1px dashed #e5e7eb; border-radius: 0.75rem; }
+.emptyIcon { opacity: 0.3; margin-bottom: 0.5rem; }
+
+.loading { text-align: center; padding: 2rem; color: #6b7280; }
+
+/* ============ FAB (botón flotante "+") ============ */
+.fab { position: fixed; right: 1rem; bottom: 5.5rem; z-index: 30; height: 52px; padding: 0 1.25rem; border-radius: 9999px; background: #2563eb; color: white; border: none; box-shadow: 0 10px 25px -5px rgb(37 99 235 / 0.5); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.9375rem; font-weight: 700; transition: transform 0.15s, background 0.15s; animation: fabIn 0.3s ease; }
+.fab:hover { background: #1d4ed8; }
+.fab:active { transform: scale(0.95); }
+@media (min-width: 768px) { .fab { bottom: 2rem; right: 2rem; } }
+.fab:hover { background: #1d4ed8; }
+.fab:active { transform: scale(0.92); }
+@media (min-width: 768px) { .fab { bottom: 2rem; right: 2rem; } }
+@keyframes fabIn { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+
+/* ============ BOTTOM SHEET (form) ============ */
+.sheetOverlay { position: fixed; inset: 0; background: rgb(0 0 0 / 0.4); z-index: 60; animation: fadeIn 0.2s ease; }
+.sheet { position: fixed; bottom: 0; left: 0; right: 0; z-index: 70; background: white; border-radius: 1.5rem 1.5rem 0 0; max-height: 85vh; overflow-y: auto; animation: slideUp 0.25s ease; box-shadow: 0 -20px 40px rgb(0 0 0 / 0.2); }
+@media (min-width: 768px) {
+  .sheet { max-width: 32rem; left: 50%; right: auto; transform: translateX(-50%); border-radius: 1.5rem 1.5rem 0 0; }
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@media (min-width: 768px) {
+  @keyframes slideUp { from { transform: translate(-50%, 100%); } to { transform: translate(-50%, 0); } }
+}
+.sheetHeader { position: sticky; top: 0; background: white; padding: 1rem 1.25rem 0.75rem; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; z-index: 2; }
+.sheetGrabber { width: 2.5rem; height: 0.25rem; background: #d1d5db; border-radius: 9999px; margin: 0 auto 0.75rem; }
+.sheetTitle { font-size: 1.125rem; font-weight: 700; color: #1f2937; }
+.sheetClose { background: #f3f4f6; border: none; color: #6b7280; width: 2rem; height: 2rem; border-radius: 9999px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.sheetClose:hover { background: #e5e7eb; }
+.sheetBody { padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+
+/* ============ FORM ============ */
+.field { display: flex; flex-direction: column; gap: 0.375rem; }
+.fieldRow { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.label { font-size: 0.8125rem; font-weight: 600; color: #374151; }
+.input, .select { width: 100%; padding: 0.75rem; border: 2px solid #e5e7eb; border-radius: 0.75rem; font-size: 1rem; background: white; color: #111827; font-family: inherit; min-height: 44px; }
+.input:focus, .select:focus { outline: none; border-color: #3b82f6; }
+
+/* chips de categoría */
+.chipsGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+@media (min-width: 640px) { .chipsGrid { grid-template-columns: repeat(3, 1fr); } }
+.chip { display: flex; align-items: center; gap: 0.375rem; padding: 0.625rem 0.75rem; border: 2px solid #e5e7eb; border-radius: 0.75rem; background: white; font-size: 0.8125rem; color: #374151; cursor: pointer; transition: all 0.15s; min-height: 44px; text-align: left; font-weight: 500; }
+.chip:hover { border-color: #cbd5e1; background: #f9fafb; }
+.chipActive { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; font-weight: 700; }
+.chipEmoji { font-size: 1rem; }
+
+.submitBtn { width: 100%; padding: 0.875rem; background: #2563eb; color: white; border: none; border-radius: 0.75rem; font-size: 1rem; font-weight: 700; cursor: pointer; min-height: 48px; transition: background 0.15s; margin-top: 0.5rem; }
+.submitBtn:hover { background: #1d4ed8; }
+.submitBtn:disabled { background: #94a3b8; cursor: not-allowed; }
+
+.emptyCta { margin-top: 0.75rem; display: inline-flex; align-items: center; gap: 0.375rem; background: #2563eb; color: white; border: none; border-radius: 0.75rem; padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; }
+.emptyCta:hover { background: #1d4ed8; }

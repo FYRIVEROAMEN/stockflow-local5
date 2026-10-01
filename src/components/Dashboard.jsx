@@ -110,17 +110,17 @@ function Dashboard({ onLogout }) {
   }, [fetchProductos])
 
   // 📅 Ventas de hoy
-  useEffect(() => {
-    if (currentView !== 'home' || !LOCAL_ID) return
-    (async () => {
-      try {
-        const desde = new Date(); desde.setHours(0, 0, 0, 0)
-        const { data } = await supabase.from('ventas').select('total').eq('local_id', LOCAL_ID).gte('fecha', desde.toISOString())
-        const list = data || []
-        setVentasHoy({ monto: list.reduce((s, v) => s + Number(v.total || 0), 0), count: list.length })
-      } catch (err) { /* sin ventas hoy */ }
-    })()
-  }, [currentView])
+  // useEffect(() => {
+  //   if (currentView !== 'home' || !LOCAL_ID) return
+  //   (async () => {
+  //     try {
+  //       const desde = new Date(); desde.setHours(0, 0, 0, 0)
+  //       const { data } = await supabase.from('ventas').select('total').eq('local_id', LOCAL_ID).gte('fecha', desde.toISOString())
+  //       const list = data || []
+  //       setVentasHoy({ monto: list.reduce((s, v) => s + Number(v.total || 0), 0), count: list.length })
+  //     } catch (err) { /* sin ventas hoy */ }
+  //   })()
+  // }, [currentView])
 
   const [scrolled, setScrolled] = useState(false)
   useEffect(() => {
@@ -257,11 +257,10 @@ function Dashboard({ onLogout }) {
   }
 
   const vender = (p) => {
-    addToCartFromDashboard(p)
-    setAddedToCart(p.id)
-    setTimeout(() => setAddedToCart(null), 2000)
-    setCurrentView('sales')
-  }
+  addToCartFromDashboard(p)
+  setAddedToCart(p.id)
+  setTimeout(() => setAddedToCart(null), 2000)
+}
 
   const categorias = [...new Set(productos.map(p => p.categoria).filter(Boolean))].sort()
 
@@ -489,7 +488,7 @@ function Dashboard({ onLogout }) {
         ) : null}
 
         {/* ============ VISTA INVENTARIO ============ */}
-        {currentView === 'inventario' ? (
+        {(currentView === 'inventario' || currentView === 'dashboard') ? (
           <>
             <div className={styles.filterBar}>
               <div className={styles.searchWrap}>
@@ -719,7 +718,7 @@ function Dashboard({ onLogout }) {
         ) : currentView === 'clientes' ? (
           <ClientesView />
         ) : currentView === 'metrics' ? (
-          <MetricsView onNavigate={setCurrentView} />
+          <MetricsView onNavigate={(v) => (v === 'stockbajo' ? irAStockBajo() : irA(v))} />
         ) : currentView === 'gastos' ? (
           <GastosView />
         ) : currentView === 'pedidos' ? (

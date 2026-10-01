@@ -1,0 +1,100 @@
+/* ============ LAYOUT ============ */
+.wrap { max-width: 60rem; margin: 0 auto; padding: 1rem; display: flex; flex-direction: column; gap: 1rem; }
+@media (min-width: 640px) { .wrap { padding: 2rem 1rem; gap: 1.25rem; } }
+
+.headerRow { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; }
+.title { font-size: 1.375rem; font-weight: 700; color: #1f2937; }
+@media (min-width: 640px) { .title { font-size: 1.875rem; } }
+.exportBtn { display: inline-flex; align-items: center; gap: 0.375rem; background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; border-radius: 0.625rem; padding: 0.5rem 0.75rem; font-size: 0.8125rem; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.exportBtn:hover { background: #dcfce7; }
+
+/* ============ SEGMENTED ============ */
+.segmented { display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem; background: #f3f4f6; border-radius: 0.75rem; padding: 0.25rem; }
+.segBtn { border: none; background: transparent; border-radius: 0.625rem; padding: 0.625rem 0.5rem; font-size: 0.8125rem; font-weight: 700; color: #6b7280; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.segBtnActiveTodos { background: white; color: #2563eb; box-shadow: 0 1px 3px rgb(0 0 0 / 0.1); }
+.segBtnActiveDeudores { background: white; color: #dc2626; box-shadow: 0 1px 3px rgb(0 0 0 / 0.1); }
+
+/* ============ SEARCH ============ */
+.searchWrap { position: relative; }
+.searchIcon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); width: 1.25rem; height: 1.25rem; color: #9ca3af; pointer-events: none; }
+.searchInput { width: 100%; padding: 0.75rem 1rem 0.75rem 2.75rem; border: 2px solid #e5e7eb; border-radius: 0.75rem; font-size: 1rem; background: white; min-height: 44px; }
+.searchInput:focus { outline: none; border-color: #3b82f6; }
+
+/* ============ RESUMEN ============ */
+.summary { border-radius: 1rem; border: 2px solid; padding: 1rem; }
+.summaryRed { background: #fef2f2; border-color: #fecaca; }
+.summaryBlue { background: #eff6ff; border-color: #bfdbfe; }
+.summaryLabel { font-size: 0.875rem; color: #4b5563; font-weight: 500; }
+.summaryValue { font-size: 1.75rem; font-weight: 800; margin-top: 0.125rem; }
+@media (min-width: 640px) { .summaryValue { font-size: 2rem; } }
+.summaryRed .summaryValue { color: #b91c1c; }
+.summaryBlue .summaryValue { color: #1d4ed8; }
+.summaryHint { font-size: 0.75rem; color: #6b7280; margin-top: 0.125rem; }
+
+/* ============ CARDS ============ */
+.list { display: flex; flex-direction: column; gap: 0.75rem; }
+.card { background: white; border: 1px solid #e5e7eb; border-radius: 1rem; overflow: visible; box-shadow: 0 1px 3px rgb(0 0 0 / 0.06); }
+.cardTop { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.875rem; }
+.avatar { width: 2.5rem; height: 2.5rem; border-radius: 9999px; background: #dbeafe; color: #1d4ed8; font-weight: 800; font-size: 1rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.avatarDebt { background: #fee2e2; color: #b91c1c; }
+.cardInfo { flex: 1; min-width: 0; }
+.cardName { font-size: 0.9375rem; font-weight: 700; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cardMeta { font-size: 0.75rem; color: #6b7280; margin-top: 0.125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chipRow { display: flex; align-items: center; gap: 0.5rem; padding: 0 0.875rem 0.75rem; flex-wrap: wrap; }
+.debtChip { background: #fee2e2; color: #b91c1c; font-size: 0.8125rem; font-weight: 800; padding: 0.25rem 0.625rem; border-radius: 9999px; }
+.okChip { background: #dcfce7; color: #15803d; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.625rem; border-radius: 9999px; }
+.lastChip { font-size: 0.6875rem; color: #6b7280; }
+.cardActions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; padding: 0 0.875rem 0.875rem; }
+.cardActionsOne { grid-template-columns: 1fr; }
+.actionBtn { display: flex; align-items: center; justify-content: center; gap: 0.375rem; border: none; border-radius: 0.75rem; padding: 0.75rem 0.5rem; font-size: 0.875rem; font-weight: 700; color: white; cursor: pointer; min-height: 44px; transition: filter 0.15s, transform 0.15s; }
+.actionBtn:active { transform: scale(0.97); }
+.actionGreen { background: #16a34a; }
+.actionBlue { background: #3b82f6; }
+.actionBtn:hover { filter: brightness(1.06); }
+
+/* ============ MENÚ ⋮ ============ */
+.kebabWrap { position: relative; flex-shrink: 0; z-index: 30; }
+.kebabBtn { background: #f3f4f6; border: none; color: #4b5563; padding: 0.5rem; border-radius: 0.625rem; cursor: pointer; display: flex; }
+.kebabBtn:hover { background: #e5e7eb; }
+.kebabOverlay { position: fixed; inset: 0; z-index: 90; }
+.kebabMenu { position: absolute; right: 0; top: 2.5rem; width: 14rem; background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.2); overflow: hidden; z-index: 100; }
+.menuItem { width: 100%; text-align: left; padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.75rem; background: transparent; border: none; border-bottom: 1px solid #f3f4f6; cursor: pointer; color: #374151; }
+.menuItem:last-child { border-bottom: none; }
+.menuItem:hover { background: #f9fafb; }
+.menuItemTitle { font-size: 0.875rem; font-weight: 600; }
+.menuItemHint { font-size: 0.6875rem; color: #6b7280; }
+.menuItemOrange { color: #c2410c; }
+.menuItemOrange:hover { background: #fff7ed; }
+.menuItemRed { color: #b91c1c; }
+.menuItemRed:hover { background: #fef2f2; }
+
+/* ============ DETALLE EXPANDIDO ============ */
+.detail { border-top: 1px solid #e5e7eb; background: #f9fafb; padding: 0.875rem; display: flex; flex-direction: column; gap: 0.75rem; }
+.detailHead { display: flex; justify-content: space-between; align-items: center; }
+.detailTitle { font-size: 0.875rem; font-weight: 700; color: #374151; }
+.detailClose { background: #e5e7eb; border: none; color: #374151; border-radius: 0.5rem; padding: 0.375rem; cursor: pointer; display: flex; }
+.ventaCard { background: white; border: 1px solid #e5e7eb; border-radius: 0.75rem; overflow: hidden; }
+.ventaHead { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: #f9fafb; }
+.ventaId { font-size: 0.875rem; font-weight: 700; color: #1f2937; }
+.ventaFecha { font-size: 0.6875rem; color: #6b7280; }
+.ventaTotal { font-size: 1rem; font-weight: 700; color: #1f2937; text-align: right; }
+.ventaProds { padding: 0.75rem; background: #f3f4f6; border-top: 1px solid #e5e7eb; display: flex; flex-direction: column; gap: 0.5rem; }
+.prodRow { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.75rem; color: #374151; }
+.prodName { font-weight: 600; }
+.prodTags { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-top: 0.25rem; }
+.tagTalle { background: #e5e7eb; color: #374151; font-size: 0.625rem; font-weight: 700; padding: 0.125rem 0.375rem; border-radius: 0.25rem; }
+.tagColor { background: #f3e8ff; color: #7e22ce; font-size: 0.625rem; font-weight: 700; padding: 0.125rem 0.375rem; border-radius: 0.25rem; }
+.ventaPagos { padding: 0.75rem; background: #f0fdf4; border-top: 1px solid #bbf7d0; display: flex; flex-direction: column; gap: 0.25rem; }
+.pagoRow { display: flex; justify-content: space-between; font-size: 0.75rem; color: #15803d; }
+.ventaPendiente { padding: 0.75rem; background: #fef2f2; border-top: 1px solid #fecaca; display: flex; justify-content: space-between; align-items: center; }
+.pendienteLabel { font-size: 0.8125rem; font-weight: 700; color: #991b1b; }
+.pendienteHint { font-size: 0.6875rem; color: #dc2626; }
+.pendienteValor { font-size: 1.125rem; font-weight: 800; color: #b91c1c; }
+.detailEmpty { text-align: center; padding: 1.25rem; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 0.75rem; font-size: 0.875rem; color: #15803d; }
+
+/* ============ EMPTY + LOADING ============ */
+.emptyState { text-align: center; padding: 2.5rem 1rem; color: #6b7280; background: #f9fafb; border: 1px dashed #e5e7eb; border-radius: 1rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+.emptyTitle { font-size: 1rem; font-weight: 600; color: #374151; }
+.emptyCta { margin-top: 0.5rem; background: #2563eb; color: white; border: none; border-radius: 0.75rem; padding: 0.625rem 1.25rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; }
+.emptyCta:hover { background: #1d4ed8; }
+.loading { text-align: center; padding: 2rem; color: #6b7280; }

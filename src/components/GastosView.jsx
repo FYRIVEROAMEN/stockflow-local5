@@ -1,23 +1,27 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, DollarSign, Calendar, Tag } from 'lucide-react'
+import { Plus, Trash2, DollarSign, Calendar, Download, X, MoreVertical, TrendingDown, TrendingUp } from 'lucide-react'
 import { getGastos, addGasto, deleteGasto } from '../services/api'
 import Swal from 'sweetalert2'
+import styles from './GastosView.module.css'
 
 const CATEGORIAS = [
-  { value: 'alquiler', label: '🏠 Alquiler' },
-  { value: 'servicios', label: '💡 Servicios (luz, agua, gas, internet)' },
-  { value: 'sueldos', label: '👥 Sueldos' },
-  { value: 'impuestos', label: '📋 Impuestos' },
-  { value: 'insumos', label: '🧾 Insumos / Mercadería' },
-  { value: 'otros', label: '📦 Otros' }
+  { value: 'alquiler', label: 'Alquiler', emoji: '🏠' },
+  { value: 'servicios', label: 'Servicios', emoji: '💡' },
+  { value: 'sueldos', label: 'Sueldos', emoji: '👥' },
+  { value: 'impuestos', label: 'Impuestos', emoji: '📋' },
+  { value: 'insumos', label: 'Insumos', emoji: '🧾' },
+  { value: 'otros', label: 'Otros', emoji: '📦' }
 ]
+
+const money = (n) => '$ ' + Math.round(Number(n || 0)).toLocaleString('es-AR')
 
 function GastosView() {
   const [gastos, setGastos] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [menuOpenId, setMenuOpenId] = useState(null)
   const [mesSeleccionado, setMesSeleccionado] = useState(
-    new Date().toISOString().slice(0, 7) // YYYY-MM
+    new Date().toISOString().slice(0, 7)
   )
 
   const [form, setForm] = useState({
@@ -39,8 +43,15 @@ function GastosView() {
     setLoading(false)
   }
 
+  useEffect(() => { fetchGastos() }, [])
+
+  // cerrar sheet con ESC y cerrar menú con click fuera
   useEffect(() => {
-    fetchGastos()
+    const onKey = (e) => { if (e.key === 'Escape') { setSheetOpen(false); setMenuOpenId(null) } }
+    const onClick = () => setMenuOpenId(null)
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('click', onClick)
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('click', onClick) }
   }, [])
 
   const handleSubmit = async (e) => {
@@ -53,7 +64,6 @@ function GastosView() {
       Swal.fire('Monto inválido', 'Ingresá un monto mayor a 0', 'warning')
       return
     }
-
     try {
       await addGasto({
         fecha: form.fecha,
@@ -62,20 +72,12 @@ function GastosView() {
         monto: parseFloat(form.monto),
         nota: form.nota.trim() || null
       })
-      Swal.fire({
-        title: '¡Gasto registrado!',
-        icon: 'success',
-        timer: 1500,
-        showConfirmButton: false
-      })
+      Swal.fire({ title: '¡Gasto registrado!', icon: 'success', timer: 1500, showConfirmButton: false })
       setForm({
         fecha: new Date().toISOString().slice(0, 10),
-        concepto: '',
-        categoria: 'otros',
-        monto: '',
-        nota: ''
+        concepto: '', categoria: 'otros', monto: '', nota: ''
       })
-      setShowForm(false)
+      setSheetOpen(false)
       fetchGastos()
     } catch (err) {
       Swal.fire('Error', err.message, 'error')
@@ -83,6 +85,7 @@ function GastosView() {
   }
 
   const handleDelete = async (id, concepto) => {
+    setMenuOpenId(null)
     const result = await Swal.fire({
       title: '¿Eliminar gasto?',
       text: `"${concepto}"`,
@@ -92,7 +95,6 @@ function GastosView() {
       cancelButtonText: 'Cancelar',
       confirmButtonColor: '#dc2626'
     })
-
     if (result.isConfirmed) {
       try {
         await deleteGasto(id)
@@ -104,179 +106,276 @@ function GastosView() {
     }
   }
 
-  // Filtrar gastos del mes seleccionado
-  const gastosDelMes = gastos.filter(g => g.fecha?.startsWith(mesSeleccionado))
-  const totalMes = gastosDelMes.reduce((sum, g) => sum + Number(g.monto), 0)
+  // ============ DERIVACIONES ============
+  const [anio, mes] = mesSeleccionado.split('-').map(Number)
+  const nombreMesRaw = new Date(anio, mes - 1, 1).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
+  const nombreMes = nombreMesRaw.charAt(0).toUpperCase() + nombreMesRaw.slice(1)
 
-  // Agrupar por categoría para el resumen
+  // mes anterior para el delta
+  const prevDate = new Date(anio, mes - 2, 1)
+  const mesAnteriorStr = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`
+
+  const gastosDelMes = gastos.filter(g => g.fecha?.startsWith(mesSeleccionado))
+  const gastosMesAnterior = gastos.filter(g => g.fecha?.startsWith(mesAnteriorStr))
+  const totalMes = gastosDelMes.reduce((sum, g) => sum + Number(g.monto), 0)
+  const totalMesAnterior = gastosMesAnterior.reduce((sum, g) => sum + Number(g.monto), 0)
+
+  let delta = null
+  let deltaCls = styles.deltaFlat
+  if (totalMesAnterior > 0) {
+    const pct = ((totalMes - totalMesAnterior) / totalMesAnterior) * 100
+    delta = pct
+    deltaCls = pct > 0 ? styles.deltaUp : pct < 0 ? styles.deltaDown : styles.deltaFlat
+  }
+
+  // desglose por categoría con % (ordenado por monto)
   const porCategoria = CATEGORIAS.map(c => ({
     ...c,
-    total: gastosDelMes
-      .filter(g => g.categoria === c.value)
-      .reduce((sum, g) => sum + Number(g.monto), 0)
-  })).filter(c => c.total > 0)
+    total: gastosDelMes.filter(g => g.categoria === c.value).reduce((s, g) => s + Number(g.monto), 0)
+  })).filter(c => c.total > 0).sort((a, b) => b.total - a.total)
+
+  // lista ordenada por fecha descendente
+  const gastosOrdenados = [...gastosDelMes].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''))
+
+  const getCategoria = (val) => CATEGORIAS.find(c => c.value === val) || CATEGORIAS[CATEGORIAS.length - 1]
+
+  const exportarCSV = () => {
+    if (gastosDelMes.length === 0) {
+      Swal.fire({ title: 'Sin gastos', text: 'No hay gastos en el mes seleccionado', icon: 'info', timer: 1500, showConfirmButton: false })
+      return
+    }
+    const headers = ['Fecha', 'Categoría', 'Concepto', 'Monto', 'Nota']
+    const rows = gastosOrdenados.map(g => {
+      const cat = getCategoria(g.categoria)
+      return [
+        new Date(g.fecha).toLocaleDateString('es-AR'),
+        `"${cat.label}"`,
+        `"${(g.concepto || '').replace(/"/g, "'")}"`,
+        Number(g.monto).toFixed(2),
+        `"${(g.nota || '').replace(/"/g, "'")}"`
+      ]
+    })
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `gastos_${mesSeleccionado}.csv`
+    link.click()
+  }
 
   return (
-    <div className="bg-white p-4 sm:p-8 rounded-xl shadow-sm border border-gray-200 max-w-5xl mx-auto">
-      <div className="flex justify-between items-start mb-6">
+    <div className={styles.wrap}>
+      {/* ============ HEADER ============ */}
+      <div className={styles.headerRow}>
         <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">Gastos del Local</h2>
-          <p className="text-sm text-gray-500 mt-1">Controlá tus egresos mensuales</p>
+          <h2 className={styles.title}>Gastos del Local</h2>
+          <p className={styles.subtitle}>Controlá tus egresos mensuales</p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="btn btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          {showForm ? 'Cancelar' : 'Nuevo gasto'}
-        </button>
+        <label className={styles.monthChip}>
+          <Calendar size={16} />
+          <input
+            type="month"
+            value={mesSeleccionado}
+            onChange={(e) => setMesSeleccionado(e.target.value)}
+            className={styles.monthInput}
+          />
+        </label>
       </div>
 
-      {/* Selector de mes */}
-      <div className="mb-6 flex items-center gap-3">
-        <Calendar className="w-5 h-5 text-gray-500" />
-        <input
-          type="month"
-          value={mesSeleccionado}
-          onChange={(e) => setMesSeleccionado(e.target.value)}
-          className="input-lg"
-          style={{ maxWidth: '200px' }}
-        />
-      </div>
-
-      {/* Total del mes */}
-      <div className="mb-6 p-5 rounded-xl bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200">
-        <p className="text-sm text-red-700 font-medium">Total gastado en {mesSeleccionado}</p>
-        <p className="text-4xl font-bold text-red-800 mt-1">${totalMes.toFixed(2)}</p>
-        <p className="text-xs text-red-600 mt-1">{gastosDelMes.length} gasto(s) registrado(s)</p>
-      </div>
-
-      {/* Resumen por categoría */}
-      {porCategoria.length > 0 && (
-        <div className="mb-6">
-          <h3 className="text-sm font-bold text-gray-700 mb-3">Desglose por categoría</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {porCategoria.map(c => (
-              <div key={c.value} className="p-3 rounded-lg bg-gray-50 border border-gray-200">
-                <p className="text-xs text-gray-600">{c.label}</p>
-                <p className="text-lg font-bold text-gray-800">${c.total.toFixed(2)}</p>
-              </div>
-            ))}
-          </div>
+      {/* ============ HERO TOTAL ============ */}
+      <div className={styles.hero}>
+        <p className={styles.heroLabel}>Total gastado en {nombreMes}</p>
+        <p className={styles.heroValue}>{money(totalMes)}</p>
+        <div className={styles.heroMeta}>
+          <span>{gastosDelMes.length} gasto(s) registrado(s)</span>
+          {delta !== null && (
+            <span className={`${styles.delta} ${deltaCls}`}>
+              {delta > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+              {delta > 0 ? '+' : ''}{delta.toFixed(0)}% vs mes anterior
+            </span>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* Formulario (condicional) */}
-      {showForm && (
-        <form onSubmit={handleSubmit} className="mb-6 p-5 rounded-xl border-2 border-blue-200 bg-blue-50">
-          <h3 className="text-lg font-bold mb-4 text-gray-800">Registrar nuevo gasto</h3>
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Fecha *</label>
-                <input
-                  type="date"
-                  value={form.fecha}
-                  onChange={(e) => setForm({ ...form, fecha: e.target.value })}
-                  className="input-lg"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Monto *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={form.monto}
-                  onChange={(e) => setForm({ ...form, monto: e.target.value })}
-                  className="input-lg"
-                  placeholder="0.00"
-                  required
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Categoría *</label>
-              <select
-                value={form.categoria}
-                onChange={(e) => setForm({ ...form, categoria: e.target.value })}
-                className="input-lg"
-              >
-                {CATEGORIAS.map(c => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Concepto *</label>
-              <input
-                type="text"
-                value={form.concepto}
-                onChange={(e) => setForm({ ...form, concepto: e.target.value })}
-                className="input-lg"
-                placeholder="Ej: Alquiler de marzo, Factura Edenor..."
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Nota (opcional)</label>
-              <input
-                type="text"
-                value={form.nota}
-                onChange={(e) => setForm({ ...form, nota: e.target.value })}
-                className="input-lg"
-                placeholder="Detalle adicional..."
-              />
-            </div>
-            <button type="submit" className="btn btn-primary w-full">
-              Guardar gasto
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Lista de gastos del mes */}
-      <div>
-        <h3 className="text-lg font-bold text-gray-800 mb-3">Gastos del mes</h3>
-        {loading ? (
-          <div className="text-center py-8 text-gray-500">Cargando...</div>
-        ) : gastosDelMes.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-xl">
-            <DollarSign className="w-12 h-12 mx-auto mb-2 opacity-30" />
-            <p>No hay gastos registrados en {mesSeleccionado}</p>
+      {/* ============ DESGLOSE POR CATEGORÍA ============ */}
+      <div className={styles.breakdownCard}>
+        <h3 className={styles.breakdownTitle}>¿En qué se fue?</h3>
+        {porCategoria.length > 0 ? (
+          <div className={styles.breakdownList}>
+            {porCategoria.map(c => {
+              const pct = totalMes > 0 ? (c.total / totalMes) * 100 : 0
+              return (
+                <div key={c.value} className={styles.catRow}>
+                  <div className={styles.catTop}>
+                    <div className={styles.catLabel}>
+                      <span className={styles.catEmoji}>{c.emoji}</span>
+                      <span className={styles.catName}>{c.label}</span>
+                      <span className={styles.catPct}>{pct.toFixed(0)}%</span>
+                    </div>
+                    <span className={styles.catAmount}>{money(c.total)}</span>
+                  </div>
+                  <div className={styles.catBar}>
+                    <div className={styles.catBarFill} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              )
+            })}
           </div>
         ) : (
-          <div className="space-y-2">
-            {gastosDelMes.map(g => {
-              const cat = CATEGORIAS.find(c => c.value === g.categoria) || CATEGORIAS[CATEGORIAS.length - 1]
+          <p className={styles.breakdownEmpty}>Sin gastos para desglosar</p>
+        )}
+      </div>
+
+      {/* ============ MOVIMIENTOS ============ */}
+      <section>
+        <div className={styles.movHeader}>
+          <h3 className={styles.movTitle}>Movimientos del mes</h3>
+          <button onClick={exportarCSV} disabled={gastosDelMes.length === 0} className={styles.exportBtn}>
+            <Download size={14} /> CSV
+          </button>
+        </div>
+
+        {loading ? (
+          <p className={styles.loading}>Cargando...</p>
+        ) : gastosOrdenados.length === 0 ? (
+          <div className={styles.emptyState}>
+            <DollarSign size={40} className={styles.emptyIcon} />
+            <p>No hay gastos registrados en {nombreMes}</p>
+            <button onClick={() => setSheetOpen(true)} className={styles.emptyCta}>
+              <Plus size={16} /> Cargar mi primer gasto
+            </button>
+          </div>
+        ) : (
+          <div className={styles.movList}>
+            {gastosOrdenados.map(g => {
+              const cat = getCategoria(g.categoria)
               return (
-                <div key={g.id} className="p-4 rounded-xl border border-gray-200 bg-white hover:shadow-sm transition flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 text-xl">
-                    {cat.label.split(' ')[0]}
+                <div key={g.id} className={styles.movRow}>
+                  <div className={styles.movIcon}>{cat.emoji}</div>
+                  <div className={styles.movInfo}>
+                    <p className={styles.movName}>{g.concepto}</p>
+                    <div className={styles.movLine}>
+                      <p className={styles.movSub}>
+                        {new Date(g.fecha).toLocaleDateString('es-AR')} · {cat.label}
+                      </p>
+                      <p className={styles.movAmount}>−{money(g.monto)}</p>
+                    </div>
+                    {g.nota && <p className={styles.movNote}>{g.nota}</p>}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-gray-800 truncate">{g.concepto}</p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(g.fecha).toLocaleDateString('es-AR')} · {cat.label.split(' ').slice(1).join(' ')}
-                    </p>
-                    {g.nota && <p className="text-xs text-gray-400 italic mt-0.5 truncate">{g.nota}</p>}
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="font-bold text-lg text-red-700">${Number(g.monto).toFixed(2)}</p>
+                  <div className={styles.kebabWrap}>
                     <button
-                      onClick={() => handleDelete(g.id, g.concepto)}
-                      className="text-red-500 hover:text-red-700 p-1 transition"
-                      title="Eliminar"
+                      className={styles.kebabBtn}
+                      onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === g.id ? null : g.id) }}
+                      aria-label="Más opciones"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <MoreVertical size={16} />
                     </button>
+                    {menuOpenId === g.id && (
+                      <div className={styles.kebabMenu} onClick={(e) => e.stopPropagation()}>
+                        <button className={styles.kebabItem} onClick={() => handleDelete(g.id, g.concepto)}>
+                          <Trash2 size={14} /> Eliminar
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )
             })}
           </div>
         )}
-      </div>
+      </section>
+
+      {/* ============ FAB EXTENDIDO ============ */}
+      <button onClick={() => setSheetOpen(true)} className={styles.fab} aria-label="Nuevo gasto">
+        <Plus size={20} /> Nuevo gasto
+      </button>
+
+      {/* ============ BOTTOM SHEET (formulario) ============ */}
+      {sheetOpen && (
+        <>
+          <div className={styles.sheetOverlay} onClick={() => setSheetOpen(false)} />
+          <aside className={styles.sheet} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.sheetHeader}>
+              <div className={styles.sheetGrabber} />
+              <h3 className={styles.sheetTitle}>Nuevo gasto</h3>
+              <button onClick={() => setSheetOpen(false)} className={styles.sheetClose} aria-label="Cerrar">
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className={styles.sheetBody}>
+              <div className={styles.fieldRow}>
+                <div className={styles.field}>
+                  <label className={styles.label}>Fecha *</label>
+                  <input
+                    type="date"
+                    value={form.fecha}
+                    onChange={(e) => setForm({ ...form, fecha: e.target.value })}
+                    className={styles.input}
+                    required
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label}>Monto *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={form.monto}
+                    onChange={(e) => setForm({ ...form, monto: e.target.value })}
+                    className={styles.input}
+                    placeholder="0"
+                    required
+                    inputMode="decimal"
+                  />
+                </div>
+              </div>
+
+              <div className={styles.field}>
+                <label className={styles.label}>Categoría *</label>
+                <div className={styles.chipsGrid}>
+                  {CATEGORIAS.map(c => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setForm({ ...form, categoria: c.value })}
+                      className={`${styles.chip} ${form.categoria === c.value ? styles.chipActive : ''}`}
+                    >
+                      <span className={styles.chipEmoji}>{c.emoji}</span>
+                      <span>{c.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.field}>
+                <label className={styles.label}>Concepto *</label>
+                <input
+                  type="text"
+                  value={form.concepto}
+                  onChange={(e) => setForm({ ...form, concepto: e.target.value })}
+                  className={styles.input}
+                  placeholder="Ej: Alquiler de octubre, Factura Edenor..."
+                  required
+                />
+              </div>
+
+              <div className={styles.field}>
+                <label className={styles.label}>Nota (opcional)</label>
+                <input
+                  type="text"
+                  value={form.nota}
+                  onChange={(e) => setForm({ ...form, nota: e.target.value })}
+                  className={styles.input}
+                  placeholder="Detalle adicional..."
+                />
+              </div>
+
+              <button type="submit" className={styles.submitBtn}>
+                Guardar gasto
+              </button>
+            </form>
+          </aside>
+        </>
+      )}
     </div>
   )
 }
