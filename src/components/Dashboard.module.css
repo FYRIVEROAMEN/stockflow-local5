@@ -216,3 +216,13 @@
 .drawerItem:hover { background: #eff6ff; }
 .drawerItemTitle { font-weight: 600; font-size: 0.9375rem; }
 .drawerItemHint { font-size: 0.75rem; color: #6b7280; }
+
+/* ============ CARD IMPORT (slot del hoy-en-tu-local) ============ */
+.importCard { margin-top: 1.25rem; width: 100%; display: flex; align-items: center; gap: 0.875rem; text-align: left; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 2px dashed #93c5fd; border-radius: 1.25rem; padding: 1rem; cursor: pointer; transition: transform 0.15s, border-color 0.15s; }
+.importCard:active { transform: scale(0.98); }
+.importCard:hover { border-color: #2563eb; }
+.importIcon { width: 48px; height: 48px; border-radius: 0.875rem; background: #2563eb; color: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.importInfo { flex: 1; min-width: 0; }
+.importTitle { font-size: 0.9375rem; font-weight: 700; color: #1e3a8a; }
+.importHint { font-size: 0.75rem; color: #3b82f6; margin-top: 0.125rem; }
+.importChevron { color: #93c5fd; flex-shrink: 0; }

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Package, Plus, Edit2, Trash2, LogOut, Search, AlertTriangle, ShoppingCart, BarChart3, RotateCcw, ChevronUp, Globe, DollarSign, User, ShoppingBag, Home, MoreVertical, X, CheckCircle2, Circle, Check } from 'lucide-react'
+import { Package, Plus, Edit2, Trash2, LogOut, Search, AlertTriangle, ShoppingCart, BarChart3, RotateCcw, ChevronUp, Globe, DollarSign, User, ShoppingBag, Home, MoreVertical, X, CheckCircle2, Check, Upload, ChevronRight } from 'lucide-react'
+
+import ImportProductsView from './ImportProductsView'
 import { getProductosActivos, deactivateProducto, reactivateProducto, getProductosInactivos, enviarAWeb, quitarDeWeb, getPedidosWeb } from '../services/api'
 import { supabase } from '../services/authService'
 import { LOCAL_ID } from '../services/authService'
@@ -43,7 +45,6 @@ function Dashboard({ onLogout }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [modoSeleccion, setModoSeleccion] = useState(false)
   const [seleccion, setSeleccion] = useState([])
-  const [ventasHoy, setVentasHoy] = useState({ monto: 0, count: 0 })
   const PASO = 12
   const [pedidosCount, setPedidosCount] = useState(0)
 
@@ -403,23 +404,14 @@ function Dashboard({ onLogout }) {
                 </button>
               </div>
 
-              <div className={styles.todayCard}>
-                <p className={styles.todayTitle}>📅 Hoy en tu local</p>
-                <div className={styles.todayRow}>
-                  <div className={styles.todayCell}>
-                    <p className={styles.todayValue}>{fmt(ventasHoy.monto)}</p>
-                    <p className={styles.todayHint}>{ventasHoy.count} venta(s)</p>
-                  </div>
-                  <div className={styles.todayCell}>
-                    <p className={styles.todayValue}>{pedidosCount}</p>
-                    <p className={styles.todayHint}>pedidos pendientes</p>
-                  </div>
-                  <div className={styles.todayCell}>
-                    <p className={`${styles.todayValue} ${stockBajo > 0 ? 'text-red-600' : 'text-green-600'}`}>{stockBajo}</p>
-                    <p className={styles.todayHint}>stock bajo</p>
-                  </div>
-                </div>
-              </div>
+              <button onClick={() => irA('importar')} className={styles.importCard}>
+  <div className={styles.importIcon}><Upload size={22} /></div>
+  <div className={styles.importInfo}>
+    <p className={styles.importTitle}>Importar stock masivamente</p>
+    <p className={styles.importHint}>Cargá tu catálogo desde CSV en minutos</p>
+  </div>
+  <ChevronRight size={18} className={styles.importChevron} />
+</button>
             </div>
 
             {/* ----- DESKTOP ----- */}
@@ -466,23 +458,14 @@ function Dashboard({ onLogout }) {
                 </button>
               </div>
 
-              <div className={styles.todayCard}>
-                <p className={styles.todayTitle}>📅 Hoy en tu local</p>
-                <div className={styles.todayRow}>
-                  <div className={styles.todayCell}>
-                    <p className={styles.todayValue}>{fmt(ventasHoy.monto)}</p>
-                    <p className={styles.todayHint}>{ventasHoy.count} venta(s) registradas</p>
-                  </div>
-                  <div className={styles.todayCell}>
-                    <p className={styles.todayValue}>{pedidosCount}</p>
-                    <p className={styles.todayHint}>pedidos web pendientes</p>
-                  </div>
-                  <div className={styles.todayCell}>
-                    <p className={`${styles.todayValue} ${stockBajo > 0 ? 'text-red-600' : 'text-green-600'}`}>{stockBajo}</p>
-                    <p className={styles.todayHint}>productos con stock bajo</p>
-                  </div>
-                </div>
-              </div>
+              <button onClick={() => irA('importar')} className={styles.importCard}>
+  <div className={styles.importIcon}><Upload size={22} /></div>
+  <div className={styles.importInfo}>
+    <p className={styles.importTitle}>Importar stock masivamente</p>
+    <p className={styles.importHint}>Cargá tu catálogo desde CSV en minutos</p>
+  </div>
+  <ChevronRight size={18} className={styles.importChevron} />
+</button>
             </div>
           </>
         ) : null}
@@ -710,7 +693,7 @@ function Dashboard({ onLogout }) {
           </>
         ) : null}
 
-        {/* ============ OTRAS VISTAS ============ */}
+              {/* ============ OTRAS VISTAS ============ */}
         {currentView === 'sales' ? (
           <SalesForm onSaleRecorded={fetchProductos} productos={productos} cart={cart} setCart={setCart} />
         ) : currentView === 'history' ? (
@@ -725,6 +708,8 @@ function Dashboard({ onLogout }) {
           <PedidosWebView onCambios={fetchPedidosCount} />
         ) : currentView === 'profile' ? (
           <ProfileView />
+        ) : currentView === 'importar' ? (
+          <ImportProductsView onBack={() => irA('home')} onDone={() => { fetchProductos(); irA('inventario') }} />
         ) : null}
       </main>
 
@@ -797,6 +782,10 @@ function Dashboard({ onLogout }) {
               <button onClick={() => irA('profile')} className={styles.drawerItem}>
                 <User className="w-6 h-6 text-blue-600" />
                 <div><p className={styles.drawerItemTitle}>Mi cuenta</p><p className={styles.drawerItemHint}>Perfil, web y contraseña</p></div>
+              </button>
+              <button onClick={() => irA('importar')} className={styles.drawerItem}>
+                <Upload className="w-6 h-6 text-blue-600" />
+                <div><p className={styles.drawerItemTitle}>Importar stock</p><p className={styles.drawerItemHint}>Carga masiva desde CSV</p></div>
               </button>
               <button onClick={onLogout} className={styles.drawerItem}>
                 <LogOut className="w-6 h-6 text-red-600" />
