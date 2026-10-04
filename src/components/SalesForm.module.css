@@ -1,0 +1,215 @@
+/* ============ CONTAINER & LAYOUT ============ */
+.container { background: #f9fafb; min-height: 100vh; padding-bottom: 10rem; }
+@media (min-width: 1024px) { .container { padding-bottom: 2rem; } }
+.maxWidth { max-width: 64rem; margin: 0 auto; padding: 1rem; }
+@media (min-width: 640px) { .maxWidth { padding: 1.5rem; } }
+
+.title { display: flex; align-items: center; gap: 0.75rem; font-size: 1.5rem; font-weight: 700; color: #1f2937; margin-bottom: 1.5rem; }
+@media (min-width: 640px) { .title { font-size: 1.875rem; } }
+
+.grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+@media (min-width: 1024px) { .grid { grid-template-columns: 3fr 2fr; } }
+
+.leftColumn { display: flex; flex-direction: column; gap: 1rem; }
+.rightColumn { display: flex; flex-direction: column; gap: 1rem; }
+
+/* ============ BARRA DE BÚSQUEDA + SCANNER ============ */
+.searchRow { display: flex; gap: 0.5rem; }
+.searchWrapper { position: relative; flex: 1; }
+.searchIcon { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); width: 1.25rem; height: 1.25rem; color: #9ca3af; pointer-events: none; }
+.searchInput { width: 100%; padding: 0.875rem 1rem 0.875rem 2.5rem; border: 2px solid #d1d5db; border-radius: 0.75rem; font-size: 1rem; background: white; color: #1f2937; transition: border-color 0.15s; }
+.searchInput:focus { outline: none; border-color: #16a34a; box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1); }
+.searchInput::placeholder { color: #9ca3af; }
+
+.scanWrapper { position: relative; }
+.scanButton { background: #16a34a; color: white; border: none; border-radius: 0.75rem; width: 3.5rem; height: 3.5rem; min-width: 56px; min-height: 56px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s, transform 0.1s; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+.scanButton:hover { background: #15803d; }
+.scanButton:active { transform: scale(0.95); }
+
+/* ============ PANEL DE VARIANTES ============ */
+.variantesPanel { background: white; border: 2px solid #86efac; border-radius: 0.75rem; padding: 1rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
+.variantesHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.variantesTitle { font-weight: 700; color: #1f2937; font-size: 0.875rem; }
+.asignandoLabel { font-size: 0.75rem; color: #2563eb; margin-left: 0.5rem; }
+.closeButton { background: transparent; border: none; color: #9ca3af; padding: 0.25rem; cursor: pointer; }
+.closeButton:hover { color: #6b7280; }
+.variantesHint { font-size: 0.75rem; color: #6b7280; margin-bottom: 0.75rem; }
+
+.talleGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
+@media (min-width: 640px) { .talleGrid { grid-template-columns: repeat(6, 1fr); } }
+.colorGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+@media (min-width: 640px) { .colorGrid { grid-template-columns: repeat(4, 1fr); } }
+
+.variantButton { padding: 0.5rem; border: 2px solid #e5e7eb; border-radius: 0.75rem; background: white; cursor: pointer; text-align: center; transition: all 0.15s; }
+.variantButton:active { transform: scale(0.95); }
+.variantActive:hover { border-color: #16a34a; background: #f0fdf4; }
+.variantDisabled { border-color: #f3f4f6; background: #f9fafb; opacity: 0.4; cursor: not-allowed; }
+.variantName { font-weight: 700; color: #1f2937; font-size: 0.875rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stockGreen { font-size: 0.625rem; font-weight: 700; color: #16a34a; }
+.stockRed { font-size: 0.625rem; font-weight: 700; color: #ef4444; }
+
+.talleSelector { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+.backButton { font-size: 0.75rem; color: #2563eb; font-weight: 600; background: none; border: none; cursor: pointer; white-space: nowrap; }
+.backButton:hover { text-decoration: underline; }
+
+/* ============ LISTA DE RESULTADOS ============ */
+.resultsList { background: white; border: 2px solid #e5e7eb; border-radius: 0.75rem; max-height: 40vh; overflow-y: auto; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
+@media (min-width: 1024px) { .resultsList { max-height: none; } }
+
+.resultItem { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; border-bottom: 1px solid #f3f4f6; cursor: pointer; transition: background 0.15s; }
+.resultActive:hover { background: #f0fdf4; }
+.resultActive:active { background: #dcfce7; }
+.resultDisabled { opacity: 0.5; cursor: not-allowed; }
+
+.resultInfo { flex: 1; min-width: 0; margin-right: 0.5rem; }
+.resultName { font-weight: 700; color: #1f2937; font-size: 0.875rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resultMeta { font-size: 0.75rem; color: #6b7280; margin-top: 0.125rem; }
+.resultPrice { color: #15803d; font-weight: 700; font-size: 0.75rem; margin-top: 0.25rem; }
+
+.addIcon { background: #dcfce7; color: #15803d; border-radius: 9999px; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+/* ============ CARRITO VACÍO ============ */
+.emptyCart { background: white; padding: 2rem; border-radius: 0.75rem; border: 2px dashed #d1d5db; text-align: center; }
+.emptyCartIcon { width: 4rem; height: 4rem; margin: 0 auto 0.75rem; opacity: 0.3; color: #9ca3af; }
+.emptyCartTitle { font-size: 1.125rem; font-weight: 600; color: #6b7280; }
+.emptyCartHint { font-size: 0.875rem; color: #9ca3af; margin: 0.25rem 0 1rem; }
+.searchButton { background: #16a34a; color: white; padding: 0.5rem 1.5rem; border: none; border-radius: 0.5rem; font-weight: 500; cursor: pointer; transition: background 0.15s; }
+.searchButton:hover { background: #15803d; }
+.searchButton:active { transform: scale(0.95); }
+
+/* ============ CARDS (carrito + secciones) ============ */
+.cartCard, .sectionCard { background: white; padding: 1rem; border-radius: 0.75rem; border: 2px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
+
+.cartTitle { font-size: 1.125rem; font-weight: 700; color: #374151; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+.cartItems { display: flex; flex-direction: column; gap: 0.75rem; max-height: 15rem; overflow-y: auto; padding-right: 0.25rem; }
+
+.cartItem { padding: 0.75rem; background: #f9fafb; border-radius: 0.5rem; border: 1px solid #f3f4f6; }
+.itemInfo { margin-bottom: 0.5rem; }
+.itemName { font-weight: 700; color: #1f2937; font-size: 0.875rem; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.itemVariant { font-size: 0.75rem; color: #4b5563; margin-top: 0.125rem; }
+.variantTag { margin-right: 0.5rem; }
+.itemPrice { font-size: 0.75rem; color: #6b7280; margin-top: 0.125rem; }
+.assignButton { margin-top: 0.5rem; width: 100%; padding: 0.375rem 0.5rem; border-radius: 0.5rem; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+.assignButton:hover { background: #dbeafe; }
+.assignButton:active { transform: scale(0.95); }
+
+.quantityControls { display: flex; justify-content: space-between; align-items: center; }
+.quantityLabel { font-size: 0.75rem; color: #4b5563; font-weight: 500; }
+.quantityButtons { display: flex; align-items: center; gap: 0.25rem; }
+.qtyButton { width: 2rem; height: 2rem; display: flex; align-items: center; justify-content: center; background: white; border: 1px solid #d1d5db; border-radius: 9999px; color: #4b5563; cursor: pointer; transition: all 0.15s; }
+.qtyButton:active { background: #f3f4f6; transform: scale(0.95); }
+.quantityValue { font-size: 0.875rem; font-weight: 700; width: 1.5rem; text-align: center; }
+.deleteButton { width: 2rem; height: 2rem; display: flex; align-items: center; justify-content: center; background: #fef2f2; border: 1px solid #fecaca; border-radius: 9999px; color: #dc2626; cursor: pointer; margin-left: 0.25rem; transition: all 0.15s; }
+.deleteButton:active { background: #fee2e2; transform: scale(0.95); }
+
+/* ============ SECCIONES (cliente, descuentos) ============ */
+.sectionToggle { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: transparent; border: none; cursor: pointer; border-radius: 0.5rem; transition: background 0.15s; }
+.sectionToggle:hover { background: #f9fafb; }
+.sectionTitle { font-size: 1.125rem; font-weight: 700; color: #374151; display: flex; align-items: center; gap: 0.5rem; }
+.sectionHint { font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem; margin-left: 0.5rem; }
+.sectionContent { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.75rem; }
+
+.discountWrapper { position: relative; }
+
+.inputWrapper, .montoInputWrapper, .discountInputWrapper { position: relative; }
+.inputIcon { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); width: 1.25rem; height: 1.25rem; color: #9ca3af; pointer-events: none; }
+.input { width: 100%; padding: 0.75rem 1rem 0.75rem 2.5rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 1rem; background: white; color: #1f2937; transition: border-color 0.15s; }
+.input:focus { outline: none; border-color: #16a34a; box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1); }
+.select { width: 100%; padding: 0.75rem 1rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 1rem; background: white; color: #1f2937; cursor: pointer; }
+.select:focus { outline: none; border-color: #16a34a; }
+
+.checkboxLabel { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; cursor: pointer; border-radius: 0.5rem; transition: background 0.15s; }
+.checkboxLabel:hover { background: #f9fafb; }
+.checkbox { width: 1.25rem; height: 1.25rem; border-radius: 0.25rem; border: 1px solid #d1d5db; accent-color: #16a34a; cursor: pointer; }
+.checkboxText { font-size: 0.875rem; font-weight: 500; color: #374151; }
+
+.discountTypeRow { display: flex; gap: 0.5rem; }
+.discountTypeButton { flex: 1; padding: 0.5rem 0.75rem; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 600; background: #f3f4f6; color: #374151; border: none; cursor: pointer; transition: all 0.15s; }
+.discountTypeButton:active { transform: scale(0.95); }
+.discountTypeActive { background: #16a34a; color: white; }
+.discountPrefix { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: #6b7280; font-weight: 700; pointer-events: none; }
+
+/* ============ CHECKOUT MOBILE ============ */
+.checkoutMobile { background: #f0fdf4; border: 2px solid #bbf7d0; padding: 1rem; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
+@media (min-width: 1024px) { .checkoutMobile { display: none; } }
+
+.checkoutInfo { margin-bottom: 0.75rem; }
+.totalRow { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.totalLabel { font-size: 0.875rem; color: #4b5563; }
+.totalValue { font-size: 1.25rem; font-weight: 700; color: #374151; }
+
+.montoWrapper { margin-bottom: 0.5rem; }
+.montoLabel { font-size: 0.75rem; color: #4b5563; display: block; margin-bottom: 0.25rem; }
+.montoPrefix { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: #6b7280; font-weight: 700; pointer-events: none; }
+.montoInput { width: 100%; padding: 1rem 1rem 1rem 2rem; border: 2px solid #d1d5db; border-radius: 0.5rem; text-align: right; font-size: 1.5rem; font-weight: 700; background: white; color: #1f2937; transition: all 0.15s; }
+.montoInput:focus { outline: none; box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1); }
+
+.inputDefault { border-color: #d1d5db; background: white; }
+.inputDefault:focus { border-color: #16a34a; }
+.inputExcess { border-color: #3b82f6; background: #eff6ff; }
+.inputExcess:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+.inputExact { border-color: #16a34a; background: #f0fdf4; }
+.inputExact:focus { border-color: #16a34a; box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1); }
+.inputPartial { border-color: #eab308; background: #fefce8; }
+.inputPartial:focus { border-color: #eab308; box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.1); }
+
+.montoHelp { font-size: 0.75rem; font-weight: 500; margin-top: 0.25rem; }
+.helpGray { color: #6b7280; }
+.helpBlue { color: #2563eb; }
+.helpGreen { color: #16a34a; }
+.helpYellow { color: #ca8a04; }
+
+.vueltoText { font-size: 0.875rem; color: #2563eb; font-weight: 600; margin-top: 0.25rem; }
+.restaText { font-size: 0.875rem; color: #dc2626; font-weight: 600; margin-top: 0.25rem; }
+
+.checkoutButton { width: 100%; font-weight: 700; padding: 1rem; border: none; border-radius: 0.75rem; font-size: 1.125rem; background: #16a34a; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 56px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); transition: all 0.15s; }
+.checkoutButton:hover:not(:disabled) { background: #15803d; }
+.checkoutButton:active:not(:disabled) { transform: scale(0.98); }
+.checkoutDisabled { background: #9ca3af !important; cursor: not-allowed !important; }
+
+/* ============ CHECKOUT DESKTOP ============ */
+.checkoutDesktop { display: none; }
+@media (min-width: 1024px) { .checkoutDesktop { display: block; margin-top: 1.5rem; background: white; border: 2px solid #e5e7eb; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); } }
+
+.checkoutDesktopContent { display: flex; justify-content: space-between; align-items: flex-end; gap: 1.5rem; }
+.totalValueLarge { font-size: 1.875rem; font-weight: 700; color: #15803d; }
+.montoDesktopWrapper { width: 16rem; }
+
+.checkoutButtonDesktop { background: #16a34a; color: white; font-weight: 700; padding: 1rem 2rem; border: none; border-radius: 0.75rem; font-size: 1.125rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; min-height: 56px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); transition: all 0.15s; }
+.checkoutButtonDesktop:hover:not(:disabled) { background: #15803d; }
+.checkoutButtonDesktop:active:not(:disabled) { transform: scale(0.98); }
+
+/* ============ TICKET VISUAL (OCULTO: solo html2canvas lo ve) ============ */
+.ticketContainer { position: absolute; left: -9999px; top: 0; width: 320px; background: white; padding: 1.5rem; font-family: 'Courier New', monospace; color: #111827; }
+.ticketHeader { text-align: center; border-bottom: 2px dashed #9ca3af; padding-bottom: 0.75rem; margin-bottom: 0.75rem; }
+.ticketHeader h3 { font-size: 1.125rem; font-weight: 900; margin: 0 0 0.25rem; letter-spacing: 0.05em; }
+.ticketHeader p { font-size: 0.75rem; color: #6b7280; margin: 0; }
+
+.ticketBody { border-bottom: 2px dashed #9ca3af; padding-bottom: 0.75rem; margin-bottom: 0.75rem; }
+.ticketItem { margin-bottom: 0.5rem; }
+.ticketItemName { font-size: 0.875rem; font-weight: 700; margin: 0; }
+.ticketItemVariant { font-size: 0.75rem; color: #6b7280; margin: 0.125rem 0; }
+.ticketItemPrice { font-size: 0.875rem; font-weight: 700; text-align: right; margin: 0; }
+
+.ticketFooter { display: flex; flex-direction: column; gap: 0.25rem; }
+.ticketTotalRow { display: flex; justify-content: space-between; font-size: 0.875rem; }
+.ticketTotalRowLarge { display: flex; justify-content: space-between; font-size: 1.125rem; font-weight: 900; border-top: 1px solid #d1d5db; padding-top: 0.5rem; margin-top: 0.25rem; }
+
+/* ============ SCANNER OVERLAY ============ */
+.scanOverlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.95); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 1rem; }
+.scanContainer { position: relative; width: 100%; max-width: 28rem; }
+.scanVideo { position: relative; width: 100%; height: 20rem; background: black; border-radius: 1rem; overflow: hidden; border: 4px solid #16a34a; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5); }
+.videoElement { width: 100%; height: 100%; object-fit: cover; }
+.scanLine { position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.8); animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+.scanFooter { text-align: center; margin-top: 1.5rem; }
+.scanTitle { font-size: 1.25rem; font-weight: 700; color: white; margin-bottom: 0.5rem; }
+.cancelScanButton { background: #dc2626; color: white; width: 100%; padding: 0.75rem; border: none; border-radius: 0.75rem; font-size: 1.125rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+.cancelScanButton:hover { background: #b91c1c; }
+.cancelScanButton:active { transform: scale(0.95); }
+
+/* ============ TOOLTIP ============ */
+.tooltip { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 0.5rem; background: #1f2937; color: white; font-size: 0.625rem; padding: 0.375rem 0.5rem; border-radius: 0.5rem; box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); z-index: 50; max-width: 11rem; text-align: center; line-height: 1.25; }
+.tooltipClose { position: absolute; top: -0.375rem; right: -0.375rem; width: 1rem; height: 1rem; background: white; border: none; border-radius: 9999px; display: flex; align-items: center; justify-content: center; color: #1f2937; font-size: 0.625rem; font-weight: 700; cursor: pointer; }
+.tooltipArrow { position: absolute; top: -0.25rem; left: 50%; transform: translateX(-50%); border: 0.25rem solid transparent; border-bottom-color: #1f2937; }

@@ -549,4 +549,15 @@ export const actualizarEstadoPedidoWeb = async (pedidoId, estado) => {
 }
 
 
+export const getLocalConfig = async (localId) => {
+  const { data, error } = await supabase
+    .from('locales')
+    .select('nombre, instagram, ticket_footer')
+    .eq('id', localId)
+    .single()
+  if (error) throw error
+  return data
+}
+
+
 export default api

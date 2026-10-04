@@ -6,7 +6,7 @@ import { getCategoriasApp } from '../services/api'
 import {
   descargarTemplate, autoMapeo, normalizarFilas, importarProductos,
   saveMapping, revertirImportacion, MAX_BYTES, MAX_FILAS,
-  esListaLibre, parsearListaLibre
+  esListaLibre, parsearListaLibre, extraerLineasPdf
 } from '../services/importService'
 import styles from './ImportProducts.module.css'
 
@@ -49,56 +49,87 @@ function ImportProductsView({ onDone, onBack }) {
     getCategoriasApp().then(({ data }) => setCategoriasExistentes(data || [])).catch(() => {})
   }, [])
 
-  const procesarArchivo = (file) => {
-    if (!file) return
-    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-      Swal.fire('PDF todavía no', 'Por ahora el importador lee CSV, TSV y TXT. Desde tu PDF: exportalo a CSV, o copiá las líneas a un TXT como lista.', 'info')
+  // ============ ROUTER DE DATOS (CSV / lista / PDF) ============
+  const procesarData = (data) => {
+    if (data.length < 1) {
+      Swal.fire('Archivo vacío', 'El archivo no tiene filas de datos.', 'warning')
       return
     }
+    const heads = data[0].map(h => String(h || '').trim())
+
+    // LISTA LIBRE: sin headers reconocibles → parser de texto
+    if (esListaLibre(heads)) {
+      const lineas = data.map(f => f.join(' ').trim()).filter(Boolean)
+      if (lineas.length > MAX_FILAS) {
+        Swal.fire('Demasiadas filas', `El límite es ${MAX_FILAS.toLocaleString('es-AR')} filas.`, 'warning')
+        return
+      }
+      setModoLista(true)
+      setFilasLista(lineas)
+      setFilas([])
+      setPaso('preview')
+      return
+    }
+
+    // CSV CON HEADERS
+    const body = data.slice(1)
+    if (body.length > MAX_FILAS) {
+      Swal.fire('Demasiadas filas', `El archivo tiene ${body.length.toLocaleString('es-AR')} filas y el límite es ${MAX_FILAS.toLocaleString('es-AR')}. Dividilo en partes.`, 'warning')
+      return
+    }
+    setModoLista(false)
+    setHeaders(heads)
+    setFilas(body)
+    setMapeo(autoMapeo(heads))
+    setDedupeCount(normalizarFilas(body, autoMapeo(heads)).dedupeCount)
+    setPaso('preview')
+  }
+
+  const procesarArchivo = async (file) => {
+    if (!file) return
+    const esPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
     if (file.size > MAX_BYTES) {
       Swal.fire('Archivo demasiado grande', `El límite es 10 MB y este archivo pesa ${(file.size / 1024 / 1024).toFixed(1)} MB. Dividilo en partes.`, 'warning')
       return
     }
     setNombreArchivo(file.name)
     setEdiciones({})
+
+    // ============ RAMA PDF (texto real, sin OCR) ============
+    if (esPdf) {
+      Swal.fire({
+        title: 'Leyendo PDF...',
+        text: 'Extrayendo el texto del archivo',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      })
+      try {
+        const lineas = await extraerLineasPdf(file)
+        Swal.close()
+        if (!lineas.length) {
+          Swal.fire('PDF sin texto', 'Este PDF parece escaneado (es una foto). Por ahora: exportalo a CSV desde tu sistema, o copiá las líneas a un TXT como lista.', 'warning')
+          return
+        }
+        // si la mayoría de las líneas trae comas/punto y coma/tabs → tabla
+        const conDelim = lineas.filter(l => /[,;\t]/.test(l))
+        if (conDelim.length > lineas.length / 2) {
+          const data = Papa.parse(lineas.join('\n'), { header: false, skipEmptyLines: true }).data
+          procesarData(data)
+        } else {
+          procesarData(lineas.map(l => [l]))
+        }
+      } catch (err) {
+        Swal.close()
+        Swal.fire('No se pudo leer el PDF', 'El archivo está dañado o protegido. Probá exportarlo de nuevo, o usá CSV/TXT.', 'error')
+      }
+      return
+    }
+
+    // ============ RAMA CSV/TSV/TXT ============
     Papa.parse(file, {
       header: false,
       skipEmptyLines: true,
-      complete: (results) => {
-        const data = results.data || []
-        if (data.length < 1) {
-          Swal.fire('Archivo vacío', 'El archivo no tiene filas de datos.', 'warning')
-          return
-        }
-        const heads = data[0].map(h => String(h || '').trim())
-
-        // LISTA LIBRE: sin headers reconocibles → parser de texto
-        if (esListaLibre(heads)) {
-          const lineas = data.map(f => f.join(' ').trim()).filter(Boolean)
-          if (lineas.length > MAX_FILAS) {
-            Swal.fire('Demasiadas filas', `El límite es ${MAX_FILAS.toLocaleString('es-AR')} filas.`, 'warning')
-            return
-          }
-          setModoLista(true)
-          setFilasLista(lineas)
-          setFilas([])
-          setPaso('preview')
-          return
-        }
-
-        // CSV CON HEADERS
-        const body = data.slice(1)
-        if (body.length > MAX_FILAS) {
-          Swal.fire('Demasiadas filas', `El archivo tiene ${body.length.toLocaleString('es-AR')} filas y el límite es ${MAX_FILAS.toLocaleString('es-AR')}. Dividilo en partes.`, 'warning')
-          return
-        }
-        setModoLista(false)
-        setHeaders(heads)
-        setFilas(body)
-        setMapeo(autoMapeo(heads))
-        setDedupeCount(normalizarFilas(body, autoMapeo(heads)).dedupeCount)
-        setPaso('preview')
-      }
+      complete: (results) => procesarData(results.data || [])
     })
   }
 
@@ -214,7 +245,7 @@ function ImportProductsView({ onDone, onBack }) {
           <input
             ref={inputRef}
             type="file"
-            accept=".csv,.tsv,.txt"
+            accept=".csv,.tsv,.txt,.pdf"
             style={{ display: 'none' }}
             onChange={(e) => procesarArchivo(e.target.files[0])}
           />
@@ -224,8 +255,8 @@ function ImportProductsView({ onDone, onBack }) {
             <span className="sm:hidden">Tocá para elegir tu archivo</span>
           </p>
           <p className={styles.dropHint}>
-            <span className="hidden sm:inline">o tocá para elegir · CSV, TSV o TXT · hasta {MAX_FILAS.toLocaleString('es-AR')} filas</span>
-            <span className="sm:hidden">CSV, TSV o TXT · hasta {MAX_FILAS.toLocaleString('es-AR')} filas</span>
+            <span className="hidden sm:inline">o tocá para elegir · CSV, TSV, TXT o PDF · hasta {MAX_FILAS.toLocaleString('es-AR')} filas</span>
+            <span className="sm:hidden">CSV, TSV, TXT o PDF · hasta {MAX_FILAS.toLocaleString('es-AR')} filas</span>
           </p>
         </div>
       )}
@@ -487,7 +518,7 @@ function ImportProductsView({ onDone, onBack }) {
                 <div className={styles.helpStepNum}>1</div>
                 <div>
                   <p className={styles.helpStepTitle}>Adjuntá tu archivo</p>
-                  <p className={styles.helpStepDesc}>Subí un CSV exportado desde Excel, tu sistema actual, o un TXT con tu lista anotada. Hasta 5.000 filas por carga.</p>
+                  <p className={styles.helpStepDesc}>Subí un CSV exportado desde Excel, un TXT con tu lista anotada, o un PDF con texto. Hasta 5.000 filas por carga.</p>
                 </div>
               </div>
               <div className={styles.helpStep}>

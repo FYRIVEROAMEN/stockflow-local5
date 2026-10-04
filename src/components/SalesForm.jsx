@@ -1,20 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import html2canvas from 'html2canvas'
 import { Search, Plus, Trash2, ShoppingCart, Minus, X, Barcode, User, Phone, DollarSign, Tag, ChevronDown, ChevronUp } from 'lucide-react'
 import { 
-  updateProducto, 
-  createVenta, 
-  createDetalleVenta, 
-  crearOActualizarCliente, 
-  registrarPago, 
-  actualizarEstadoPagoVenta,
-  updateVentaCliente,
-  getVariantes,
-  descontarStockVariante,
-  getStockReservado
+  updateProducto, createVenta, createDetalleVenta, crearOActualizarCliente, 
+  registrarPago, actualizarEstadoPagoVenta, updateVentaCliente, getVariantes,
+  descontarStockVariante, getStockReservado, getLocalConfig
 } from '../services/api'
 import { LOCAL_ID } from '../services/authService'
 import Swal from 'sweetalert2'
 import { BrowserMultiFormatReader } from '@zxing/library'
+import styles from './SalesForm.module.css'
 
 const formatWhatsAppNumber = (phone) => {
   if (!phone) return ''
@@ -39,10 +34,10 @@ const useDebounce = (value, delay) => {
 const Tooltip = ({ text, show, onClose }) => {
   if (!show) return null
   return (
-    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-gray-800 text-white text-[10px] px-2 py-1.5 rounded-lg shadow-lg z-50 max-w-[180px] text-center leading-tight">
+    <div className={styles.tooltip}>
       {text}
-      <button onClick={onClose} className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-white rounded-full flex items-center justify-center text-gray-800 text-[10px] font-bold">×</button>
-      <div className="absolute -top-1 left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-800" />
+      <button onClick={onClose} className={styles.tooltipClose}>×</button>
+      <div className={styles.tooltipArrow} />
     </div>
   )
 }
@@ -74,10 +69,31 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
   const [variantes, setVariantes] = useState([])
   const [asignandoItem, setAsignandoItem] = useState(null)
   const [tallePanel, setTallePanel] = useState(null)
+
+  // ============ CONFIG MULTI-TENANT DEL LOCAL ============
+  const [localConfig, setLocalConfig] = useState(null)
   
   const codeReaderRef = useRef(null)
   const isCancelledRef = useRef(false)
   const montoInputRef = useRef(null)
+  const ticketRef = useRef(null)
+
+  // ============ PERSISTENCIA DE CARRITO ============
+  useEffect(() => {
+    const saved = localStorage.getItem('stockShop_cart')
+    if (saved && cart.length === 0) {
+      try { setCart(JSON.parse(saved)) } catch {}
+    }
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('stockShop_cart', JSON.stringify(cart))
+  }, [cart])
+
+  // ============ CARGAR CONFIG DEL LOCAL (multi-tenant) ============
+  useEffect(() => {
+    if (LOCAL_ID) getLocalConfig(LOCAL_ID).then(setLocalConfig).catch(() => {})
+  }, [])
 
   useEffect(() => {
     localStorage.setItem('stockShop_first_use', JSON.stringify(firstUse))
@@ -92,7 +108,8 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
     const term = debouncedSearchTerm.toLowerCase()
     const results = productos.filter(p => 
       p.nombre?.toLowerCase().includes(term) || p.categoria?.toLowerCase().includes(term) ||
-      p.color?.toLowerCase().includes(term) || p.talle?.toLowerCase().includes(term)
+      p.color?.toLowerCase().includes(term) || p.talle?.toLowerCase().includes(term) ||
+      p.barcode?.includes(term) || p.codigo_barras?.includes(term)
     ).slice(0, 10)
     setFilteredProducts(results)
   }, [debouncedSearchTerm, productos])
@@ -101,7 +118,6 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(pattern)
   }, [])
 
-  // ⚠️ Chequea stock comprometido por pedidos web sin confirmar
   const chequearReservado = async (variante, cantidadPedida) => {
     if (!variante) return true
     const { data: map } = await getStockReservado([variante.id])
@@ -134,7 +150,6 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
     return true
   }
 
-  // Flujo 1: desde el buscador / escáner
   const addToCart = useCallback(async (product) => {
     triggerHaptic(20)
     
@@ -193,7 +208,6 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
     setFilteredProducts([])
   }, [cart, triggerHaptic, productos])
 
-  // Flujo 2: desde el carrito (ítem sin variante, viene del Dashboard)
   const abrirSelectorParaItem = async (item) => {
     try {
       const { data } = await getVariantes(item.id)
@@ -217,7 +231,6 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
     }
   }
 
-  // Agregar variante: maneja ambos modos (nuevo y asignar)
   const agregarConVariante = async (variante) => {
     if (asignandoItem) {
       if (!(await chequearReservado(variante, 1))) return
@@ -296,6 +309,7 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
   const descuentoMonto = aplicarDescuento ? (tipoDescuento === 'porcentaje' ? totalBruto * (valorDescuento / 100) : valorDescuento) : 0
   const totalNeto = totalBruto - descuentoMonto
   const montoPagadoNum = Number(montoPagado) || 0
+  const vuelto = Math.max(0, montoPagadoNum - totalNeto)
   const resta = totalNeto - montoPagadoNum
 
   const pagoStatus = montoPagadoNum === 0 ? 'empty' 
@@ -303,10 +317,26 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
     : montoPagadoNum === totalNeto ? 'exact'
     : 'partial'
 
+  // ============ GENERAR TICKET VISUAL ============
+  const generarTicketImagen = async () => {
+    if (!ticketRef.current) return null
+    try {
+      const canvas = await html2canvas(ticketRef.current, { 
+        scale: 2, 
+        backgroundColor: '#ffffff',
+        useCORS: true 
+      })
+      return canvas.toDataURL('image/png')
+    } catch (err) {
+      console.error('Error generando ticket:', err)
+      return null
+    }
+  }
+
   const handleCheckout = async () => {
     if (cart.length === 0) return Swal.fire({ title: 'Carrito vacío', icon: 'warning', confirmButtonColor: '#dc2626' })
     if (!clienteTelefono.trim()) return Swal.fire({ title: 'Teléfono requerido', text: 'Necesario para registrar la venta y el sorteo.', icon: 'warning', confirmButtonColor: '#dc2626' })
-    if (montoPagadoNum < 0 || montoPagadoNum > totalNeto) return Swal.fire({ title: 'Monto inválido', text: `Debe ser entre $0 y $${totalNeto.toFixed(2)}.`, icon: 'warning', confirmButtonColor: '#dc2626' })
+    if (montoPagadoNum < 0) return Swal.fire({ title: 'Monto inválido', text: 'No puede ser negativo.', icon: 'warning', confirmButtonColor: '#dc2626' })
 
     const sinVariante = cart.find(i => !i.variante_id)
     if (sinVariante) {
@@ -359,6 +389,11 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
       await actualizarEstadoPagoVenta(ventaId, estadoPago)
 
       const fecha = new Date().toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      
+      // Generar ticket visual
+      const ticketImg = await generarTicketImagen()
+
+      // Mensaje de WhatsApp (cierre dinámico desde config del local)
       let mensajeWhatsApp = `*COMPROBANTE DE VENTA*\n━━━━━━━━━━━━━━━━━━━━\n📅 ${fecha}\n Venta #${ventaId}\n━━━━━━━━━━━━━━━━━━━━\n\n*PRODUCTOS:*\n`
       cart.forEach(item => { 
         mensajeWhatsApp += `${item.quantity}x ${item.nombre}`
@@ -368,22 +403,55 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
       mensajeWhatsApp += `\n━━━━━━━━━━━━━━━━━━━━\n*Subtotal: $${totalBruto.toFixed(2)}*\n`
       if (aplicarDescuento && descuentoMonto > 0) mensajeWhatsApp += `*Descuento (${motivoDescuento}): -$${descuentoMonto.toFixed(2)}*\n`
       mensajeWhatsApp += `*TOTAL: $${totalNeto.toFixed(2)}*\n`
-      if (montoPagadoNum < totalNeto) mensajeWhatsApp += `*Pagado: $${montoPagadoNum.toFixed(2)}*\n*Resta: $${resta.toFixed(2)}*\n`
-      mensajeWhatsApp += `━━━━━━━━━━━━━━━━━━━━\n\n *¡SORTEO DE FIN DE MES!* \nAl agendarnos, participás AUTOMÁTICAMENTE.\n📅 Sorteo: Último día del mes\n\n✅ Seguinos en Instagram @Moon.importados\n¡Gracias por tu compra! `
+      if (montoPagadoNum > totalNeto) mensajeWhatsApp += `*Pagado: $${montoPagadoNum.toFixed(2)}*\n*Vuelto: $${vuelto.toFixed(2)}*\n`
+      else if (montoPagadoNum < totalNeto) mensajeWhatsApp += `*Pagado: $${montoPagadoNum.toFixed(2)}*\n*Resta: $${resta.toFixed(2)}*\n`
+      mensajeWhatsApp += `━━━━━━━━━━━━━━━━━━━━\n\n`
+      
+      // CIERRE DINÁMICO MULTI-TENANT (sin hardcodeos)
+      if (localConfig?.ticket_footer) {
+        mensajeWhatsApp += localConfig.ticket_footer
+      } else {
+        mensajeWhatsApp += `¡Gracias por tu compra!`
+        if (localConfig?.instagram) mensajeWhatsApp += `\n✅ Seguinos en Instagram @${localConfig.instagram}`
+      }
 
       const result = await Swal.fire({
         title: '¡Venta Registrada! ✅',
-        html: `<div style="text-align: left;"><p><strong>Total:</strong> <span style="color: #16a34a; font-size: 1.5rem; font-weight: bold;">$${totalNeto.toFixed(2)}</span></p>${resta > 0 ? `<p><strong>Resta:</strong> <span style="color: #dc2626; font-weight: bold;">$${resta.toFixed(2)}</span></p>` : ''}<hr style="margin: 15px 0;" /><label style="display: block; margin-bottom: 8px; font-weight: 600;">Enviar comprobante:</label><input id="swal-whatsapp-input" type="tel" placeholder="Ej: 11 1234 5678" style="width: 100%; padding: 12px; border: 2px solid #d1d5db; border-radius: 8px; font-size: 16px;" value="${clienteTelefono}" /></div>`,
-        icon: 'success', showCancelButton: true, confirmButtonColor: '#25D366', cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Enviar por WhatsApp', cancelButtonText: 'Solo cerrar',
+        html: `
+          <div style="text-align: left;">
+            <p><strong>Total:</strong> <span style="color: #16a34a; font-size: 1.5rem; font-weight: bold;">$${totalNeto.toFixed(2)}</span></p>
+            ${vuelto > 0 ? `<p><strong>Vuelto:</strong> <span style="color: #2563eb; font-weight: bold;">$${vuelto.toFixed(2)}</span></p>` : ''}
+            ${resta > 0 ? `<p><strong>Resta:</strong> <span style="color: #dc2626; font-weight: bold;">$${resta.toFixed(2)}</span></p>` : ''}
+            <hr style="margin: 15px 0;" />
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Enviar comprobante:</label>
+            <input id="swal-whatsapp-input" type="tel" placeholder="Ej: 11 1234 5678" style="width: 100%; padding: 12px; border: 2px solid #d1d5db; border-radius: 8px; font-size: 16px;" value="${clienteTelefono}" />
+          </div>
+        `,
+        icon: 'success', 
+        showCancelButton: true, 
+        confirmButtonColor: '#25D366', 
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: '📱 Enviar por WhatsApp', 
+        cancelButtonText: 'Solo cerrar',
+        showDenyButton: ticketImg ? true : false,
+        denyButtonColor: '#3b82f6',
+        denyButtonText: '💾 Descargar imagen',
         preConfirm: () => document.getElementById('swal-whatsapp-input').value
       })
 
-      if (result.isConfirmed && result.value) window.open(`https://wa.me/${formatWhatsAppNumber(result.value)}?text=${encodeURIComponent(mensajeWhatsApp)}`, '_blank')
+      if (result.isConfirmed && result.value) {
+        window.open(`https://wa.me/${formatWhatsAppNumber(result.value)}?text=${encodeURIComponent(mensajeWhatsApp)}`, '_blank')
+      } else if (result.isDenied && ticketImg) {
+        const link = document.createElement('a')
+        link.download = `comprobante-${ventaId}.png`
+        link.href = ticketImg
+        link.click()
+      }
       
       triggerHaptic([50, 100, 50])
       setCart([]); setClienteTelefono(''); setClienteNombre(''); setMontoPagado('')
       setAplicarDescuento(false); setValorDescuento(0); setMotivoDescuento('Promoción')
+      localStorage.removeItem('stockShop_cart')
       onSaleRecorded()
     } catch (err) {
       Swal.fire({ title: 'Error', text: err.message, icon: 'error', confirmButtonColor: '#dc2626' })
@@ -427,81 +495,81 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
 
   const getInputColorClasses = () => {
     switch(pagoStatus) {
-      case 'excess': return 'border-red-500 bg-red-50 focus:ring-red-500'
-      case 'exact': return 'border-green-500 bg-green-50 focus:ring-green-500'
-      case 'partial': return 'border-yellow-500 bg-yellow-50 focus:ring-yellow-500'
-      default: return 'border-gray-300 bg-white focus:ring-green-500'
+      case 'excess': return styles.inputExcess
+      case 'exact': return styles.inputExact
+      case 'partial': return styles.inputPartial
+      default: return styles.inputDefault
     }
   }
 
   const getMontoHelpText = () => {
     switch(pagoStatus) {
-      case 'excess': return '⚠️ Monto excede el total'
+      case 'excess': return `✅ Vuelto: $${vuelto.toFixed(2)}`
       case 'exact': return '✅ Pago exacto'
-      case 'partial': return ` Falta: $${resta.toFixed(2)}`
+      case 'partial': return `⚠️ Falta: $${resta.toFixed(2)}`
       default: return 'Ingresá el monto recibido'
     }
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-40 lg:pb-8">
-      <div className="max-w-5xl mx-auto p-4 sm:p-6">
-        <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-gray-800 flex items-center gap-3">
+    <div className={styles.container}>
+      <div className={styles.maxWidth}>
+        <h2 className={styles.title}>
           <ShoppingCart className="w-8 h-8 text-green-600" /> Nueva Venta
         </h2>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <div className="lg:col-span-3 space-y-4">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <div className={styles.grid}>
+          <div className={styles.leftColumn}>
+            <div className={styles.searchRow}>
+              <div className={styles.searchWrapper}>
+                <Search className={styles.searchIcon} />
                 <input type="text" placeholder="Buscar producto..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3.5 border-2 border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white" aria-label="Buscar producto" />
+                  className={styles.searchInput} aria-label="Buscar producto" />
               </div>
-              <div className="relative">
+              <div className={styles.scanWrapper}>
                 <Tooltip text="Tocá para escanear códigos de barra" show={showScanTooltip && firstUse} onClose={() => setShowScanTooltip(false)} />
-                <button onClick={handleScan} className="bg-green-600 hover:bg-green-700 text-white rounded-xl w-14 h-14 flex items-center justify-center transition shadow-md active:scale-95 min-h-[56px] min-w-[56px]" title="Escanear código de barras" aria-label="Escanear código de barras">
+                <button onClick={handleScan} className={styles.scanButton} title="Escanear código de barras" aria-label="Escanear código de barras">
                   <Barcode className="w-6 h-6" />
                 </button>
               </div>
             </div>
 
             {variantesProducto && (
-              <div className="bg-white border-2 border-green-300 rounded-xl p-4 shadow-sm">
-                <div className="flex justify-between items-center mb-2">
-                  <p className="font-bold text-gray-800 text-sm">
+              <div className={styles.variantesPanel}>
+                <div className={styles.variantesHeader}>
+                  <p className={styles.variantesTitle}>
                     {variantesProducto.nombre}
-                    {asignandoItem && <span className="text-xs text-blue-600 ml-2">(asignando variante)</span>}
+                    {asignandoItem && <span className={styles.asignandoLabel}>(asignando variante)</span>}
                   </p>
-                  <button onClick={() => { setVariantesProducto(null); setVariantes([]); setAsignandoItem(null); setTallePanel(null) }} className="text-gray-400 p-1">
+                  <button onClick={() => { setVariantesProducto(null); setVariantes([]); setAsignandoItem(null); setTallePanel(null) }} className={styles.closeButton}>
                     <X size={18} />
                   </button>
                 </div>
 
                 {[...new Set(variantes.map(v => v.talle).filter(Boolean))].length === 0 ? (
                   <>
-                    <p className="text-xs text-gray-500 mb-3">Tocá el color que llevás:</p>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    <p className={styles.variantesHint}>Tocá el color que llevás:</p>
+                    <div className={styles.colorGrid}>
                       {variantes.map(v => (
                         <button key={v.id} disabled={v.stock <= 0} onClick={() => agregarConVariante(v)}
-                          className={`p-2 rounded-xl border-2 text-center transition active:scale-95 ${v.stock > 0 ? 'border-gray-200 bg-white hover:border-green-500 hover:bg-green-50' : 'border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed'}`}>
-                          <p className="font-bold text-gray-800 truncate">{v.color || '—'}</p>
-                          <p className={`text-[10px] font-bold ${v.stock > 0 ? 'text-green-600' : 'text-red-500'}`}>{v.stock > 0 ? `${v.stock} uds` : 'agotado'}</p>
+                          className={`${styles.variantButton} ${v.stock > 0 ? styles.variantActive : styles.variantDisabled}`}>
+                          <p className={styles.variantName}>{v.color || '—'}</p>
+                          <p className={v.stock > 0 ? styles.stockGreen : styles.stockRed}>{v.stock > 0 ? `${v.stock} uds` : 'agotado'}</p>
                         </button>
                       ))}
                     </div>
                   </>
                 ) : !tallePanel ? (
                   <>
-                    <p className="text-xs text-gray-500 mb-3">Paso 1 de 2 — tocá el talle:</p>
-                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                    <p className={styles.variantesHint}>Paso 1 de 2 — tocá el talle:</p>
+                    <div className={styles.talleGrid}>
                       {[...new Set(variantes.map(v => v.talle).filter(Boolean))].map(t => {
                         const stockTalle = variantes.filter(v => v.talle === t).reduce((s, v) => s + v.stock, 0)
                         return (
                           <button key={t} disabled={stockTalle <= 0} onClick={() => setTallePanel(t)}
-                            className={`p-2 rounded-xl border-2 text-center transition active:scale-95 ${stockTalle > 0 ? 'border-gray-200 bg-white hover:border-green-500 hover:bg-green-50' : 'border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed'}`}>
-                            <p className="font-bold text-gray-800">{t}</p>
-                            <p className={`text-[10px] font-bold ${stockTalle > 0 ? 'text-green-600' : 'text-red-500'}`}>{stockTalle} uds</p>
+                            className={`${styles.variantButton} ${stockTalle > 0 ? styles.variantActive : styles.variantDisabled}`}>
+                            <p className={styles.variantName}>{t}</p>
+                            <p className={stockTalle > 0 ? styles.stockGreen : styles.stockRed}>{stockTalle} uds</p>
                           </button>
                         )
                       })}
@@ -509,16 +577,16 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
                   </>
                 ) : (
                   <>
-                    <div className="flex items-center gap-2 mb-3">
-                      <button onClick={() => setTallePanel(null)} className="text-xs text-blue-600 font-semibold whitespace-nowrap">← Cambiar talle</button>
-                      <p className="text-xs text-gray-500">Paso 2 de 2 — color del talle <strong>{tallePanel}</strong>:</p>
+                    <div className={styles.talleSelector}>
+                      <button onClick={() => setTallePanel(null)} className={styles.backButton}>← Cambiar talle</button>
+                      <p className={styles.variantesHint}>Paso 2 de 2 — color del talle <strong>{tallePanel}</strong>:</p>
                     </div>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    <div className={styles.colorGrid}>
                       {variantes.filter(v => v.talle === tallePanel).map(v => (
                         <button key={v.id} disabled={v.stock <= 0} onClick={() => agregarConVariante(v)}
-                          className={`p-2 rounded-xl border-2 text-center transition active:scale-95 ${v.stock > 0 ? 'border-gray-200 bg-white hover:border-green-500 hover:bg-green-50' : 'border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed'}`}>
-                          <p className="font-bold text-gray-800 truncate">{v.color || '—'}</p>
-                          <p className={`text-[10px] font-bold ${v.stock > 0 ? 'text-green-600' : 'text-red-500'}`}>{v.stock > 0 ? `${v.stock} uds` : 'agotado'}</p>
+                          className={`${styles.variantButton} ${v.stock > 0 ? styles.variantActive : styles.variantDisabled}`}>
+                          <p className={styles.variantName}>{v.color || '—'}</p>
+                          <p className={v.stock > 0 ? styles.stockGreen : styles.stockRed}>{v.stock > 0 ? `${v.stock} uds` : 'agotado'}</p>
                         </button>
                       ))}
                     </div>
@@ -528,80 +596,70 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
             )}
 
             {!variantesProducto && filteredProducts.length > 0 && (
-              <div className="bg-white border-2 border-gray-200 rounded-xl max-h-[40vh] lg:max-h-none overflow-y-auto shadow-sm">
+              <div className={styles.resultsList}>
                 {filteredProducts.map(product => (
                   <div key={product.id} onClick={() => product.stock > 0 && addToCart(product)}
-                    className={`flex justify-between items-center p-3 border-b border-gray-100 transition cursor-pointer active:bg-gray-50 ${product.stock <= 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-50'}`}
+                    className={`${styles.resultItem} ${product.stock <= 0 ? styles.resultDisabled : styles.resultActive}`}
                     role="button" aria-label={`Agregar ${product.nombre} al carrito`}>
-                    <div className="flex-1 min-w-0 mr-2">
-                      <p className="font-bold text-gray-800 text-sm truncate" title={product.nombre}>{product.nombre}</p>
-                      <p className="text-xs text-gray-500">{product.categoria} | T: {product.talle || 'N/A'} | C: {product.color || 'N/A'}</p>
-                      <p className="text-green-700 font-bold text-xs mt-1">Stock: {product.stock} | ${Number(product.precio).toFixed(2)}</p>
+                    <div className={styles.resultInfo}>
+                      <p className={styles.resultName} title={product.nombre}>{product.nombre}</p>
+                      <p className={styles.resultMeta}>{product.categoria} | T: {product.talle || 'N/A'} | C: {product.color || 'N/A'}</p>
+                      <p className={styles.resultPrice}>Stock: {product.stock} | ${Number(product.precio).toFixed(2)}</p>
                     </div>
-                    {product.stock > 0 && <div className="bg-green-100 text-green-700 rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0"><Plus className="w-5 h-5" /></div>}
+                    {product.stock > 0 && <div className={styles.addIcon}><Plus className="w-5 h-5" /></div>}
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="lg:col-span-2 space-y-4">
+          <div className={styles.rightColumn}>
             {cart.length === 0 ? (
-              <div className="bg-white p-8 rounded-xl border-2 border-dashed border-gray-300 text-center">
-                <ShoppingCart className="w-16 h-16 mx-auto mb-3 opacity-30 text-gray-400" />
-                <p className="text-lg font-semibold text-gray-500">Carrito vacío</p>
-                <p className="text-sm text-gray-400 mt-1 mb-4">Buscá productos o escaneá un código</p>
-                <button onClick={() => document.querySelector('input[type="text"]')?.focus()} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition active:scale-95">Buscar producto</button>
+              <div className={styles.emptyCart}>
+                <ShoppingCart className={styles.emptyCartIcon} />
+                <p className={styles.emptyCartTitle}>Carrito vacío</p>
+                <p className={styles.emptyCartHint}>Buscá productos o escaneá un código</p>
+                <button onClick={() => document.querySelector('input[type="text"]')?.focus()} className={styles.searchButton}>Buscar producto</button>
               </div>
             ) : (
               <>
-                <div className="bg-white p-4 rounded-xl border-2 border-gray-200 shadow-sm">
-                  <h3 className="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">
+                <div className={styles.cartCard}>
+                  <h3 className={styles.cartTitle}>
                     <ShoppingCart className="w-5 h-5" /> Carrito ({cart.length})
                   </h3>
-                  <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                  <div className={styles.cartItems}>
                     {cart.map(item => (
-                      <div key={`${item.id}-${item.variante_id || 'legacy'}`} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                        <div className="mb-2">
-                          <p className="font-bold text-gray-800 text-sm leading-tight" title={item.nombre}>
-                            {item.nombre}
-                          </p>
+                      <div key={`${item.id}-${item.variante_id || 'legacy'}`} className={styles.cartItem}>
+                        <div className={styles.itemInfo}>
+                          <p className={styles.itemName} title={item.nombre}>{item.nombre}</p>
                           {(item.talle || item.color) && (
-                            <p className="text-xs text-gray-600 mt-0.5">
-                              {item.talle && <span className="mr-2">Talle: {item.talle}</span>}
+                            <p className={styles.itemVariant}>
+                              {item.talle && <span className={styles.variantTag}>Talle: {item.talle}</span>}
                               {item.color && <span>Color: {item.color}</span>}
                             </p>
                           )}
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            ${Number(item.precio).toFixed(2)} c/u
-                          </p>
+                          <p className={styles.itemPrice}>${Number(item.precio).toFixed(2)} c/u</p>
                           {!item.variante_id && (
-                            <button
-                              onClick={() => abrirSelectorParaItem(item)}
-                              className="mt-2 w-full py-1.5 px-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold active:scale-95 transition hover:bg-blue-100"
-                            >
+                            <button onClick={() => abrirSelectorParaItem(item)} className={styles.assignButton}>
                               🎯 Elegir talle / color
                             </button>
                           )}
                         </div>
                         
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-600 font-medium">Cantidad:</span>
-                          <div className="flex items-center gap-1">
+                        <div className={styles.quantityControls}>
+                          <span className={styles.quantityLabel}>Cantidad:</span>
+                          <div className={styles.quantityButtons}>
                             <button onClick={() => updateQuantity(item.id, item.variante_id, item.quantity - 1)} 
-                              className="w-8 h-8 flex items-center justify-center bg-white border border-gray-300 rounded-full text-gray-600 active:bg-gray-100 active:scale-95 transition-all"
-                              aria-label={`Restar uno a ${item.nombre}`}>
+                              className={styles.qtyButton} aria-label={`Restar uno a ${item.nombre}`}>
                               <Minus className="w-3 h-3" />
                             </button>
-                            <span className="text-sm font-bold w-6 text-center">{item.quantity}</span>
+                            <span className={styles.quantityValue}>{item.quantity}</span>
                             <button onClick={() => updateQuantity(item.id, item.variante_id, item.quantity + 1)} 
-                              className="w-8 h-8 flex items-center justify-center bg-white border border-gray-300 rounded-full text-gray-600 active:bg-gray-100 active:scale-95 transition-all"
-                              aria-label={`Sumar uno a ${item.nombre}`}>
+                              className={styles.qtyButton} aria-label={`Sumar uno a ${item.nombre}`}>
                               <Plus className="w-3 h-3" />
                             </button>
                             <button onClick={() => removeFromCart(item.id, item.variante_id)} 
-                              className="w-8 h-8 flex items-center justify-center bg-red-50 border border-red-200 rounded-full text-red-600 active:bg-red-100 active:scale-95 transition-all ml-1"
-                              aria-label={`Eliminar ${item.nombre}`}>
+                              className={styles.deleteButton} aria-label={`Eliminar ${item.nombre}`}>
                               <Trash2 className="w-3 h-3" />
                             </button>
                           </div>
@@ -611,51 +669,51 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
                   </div>
                 </div>
 
-                <div className="bg-white p-4 rounded-xl border-2 border-gray-200 shadow-sm">
-                  <button onClick={() => setShowClientData(!showClientData)} className="w-full flex justify-between items-center mb-2 p-2 hover:bg-gray-50 rounded-lg transition" aria-expanded={showClientData} aria-label="Datos del cliente">
-                    <h4 className="text-lg font-bold text-gray-700 flex items-center gap-2"><User className="w-5 h-5" /> Cliente</h4>
+                <div className={styles.sectionCard}>
+                  <button onClick={() => setShowClientData(!showClientData)} className={styles.sectionToggle} aria-expanded={showClientData} aria-label="Datos del cliente">
+                    <h4 className={styles.sectionTitle}><User className="w-5 h-5" /> Cliente</h4>
                     {showClientData ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
                   </button>
                   {showClientData && (
-                    <div className="space-y-3 mt-3">
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                        <input type="tel" placeholder="Teléfono (Ej: 11 1234 5678)" value={clienteTelefono} onChange={(e) => setClienteTelefono(e.target.value)} className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-green-500" aria-label="Teléfono del cliente" />
+                    <div className={styles.sectionContent}>
+                      <div className={styles.inputWrapper}>
+                        <Phone className={styles.inputIcon} />
+                        <input type="tel" placeholder="Teléfono (Ej: 11 1234 5678)" value={clienteTelefono} onChange={(e) => setClienteTelefono(e.target.value)} className={styles.input} aria-label="Teléfono del cliente" />
                       </div>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                        <input type="text" placeholder="Nombre (Opcional)" value={clienteNombre} onChange={(e) => setClienteNombre(e.target.value)} className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-green-500" aria-label="Nombre del cliente" />
+                      <div className={styles.inputWrapper}>
+                        <User className={styles.inputIcon} />
+                        <input type="text" placeholder="Nombre (Opcional)" value={clienteNombre} onChange={(e) => setClienteNombre(e.target.value)} className={styles.input} aria-label="Nombre del cliente" />
                       </div>
                     </div>
                   )}
-                  {!showClientData && !clienteTelefono && <p className="text-xs text-gray-500 mt-1 ml-2">Tocá para agregar datos del cliente</p>}
+                  {!showClientData && !clienteTelefono && <p className={styles.sectionHint}>Tocá para agregar datos del cliente</p>}
                 </div>
 
-                <div className="bg-white p-4 rounded-xl border-2 border-gray-200 shadow-sm">
-                  <div className="relative">
+                <div className={styles.sectionCard}>
+                  <div className={styles.discountWrapper}>
                     <Tooltip text="Aplicá descuentos por promoción o cliente VIP" show={showDiscountTooltip && firstUse} onClose={() => setShowDiscountTooltip(false)} />
-                    <button onClick={() => setShowDiscount(!showDiscount)} className="w-full flex justify-between items-center mb-2 p-2 hover:bg-gray-50 rounded-lg transition" aria-expanded={showDiscount} aria-label="Descuentos">
-                      <h4 className="text-lg font-bold text-gray-700 flex items-center gap-2"><Tag className="w-5 h-5" /> Descuentos</h4>
+                    <button onClick={() => setShowDiscount(!showDiscount)} className={styles.sectionToggle} aria-expanded={showDiscount} aria-label="Descuentos">
+                      <h4 className={styles.sectionTitle}><Tag className="w-5 h-5" /> Descuentos</h4>
                       {showDiscount ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
                     </button>
                   </div>
                   {showDiscount && (
-                    <div className="space-y-3 mt-3">
-                      <label className="flex items-center gap-3 cursor-pointer p-2 hover:bg-gray-50 rounded-lg">
-                        <input type="checkbox" checked={aplicarDescuento} onChange={(e) => setAplicarDescuento(e.target.checked)} className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500" aria-label="Aplicar descuento" />
-                        <span className="text-sm font-medium text-gray-700">Aplicar descuento</span>
+                    <div className={styles.sectionContent}>
+                      <label className={styles.checkboxLabel}>
+                        <input type="checkbox" checked={aplicarDescuento} onChange={(e) => setAplicarDescuento(e.target.checked)} className={styles.checkbox} aria-label="Aplicar descuento" />
+                        <span className={styles.checkboxText}>Aplicar descuento</span>
                       </label>
                       {aplicarDescuento && (
                         <>
-                          <div className="flex gap-2">
-                            <button onClick={() => setTipoDescuento('porcentaje')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition active:scale-95 ${tipoDescuento === 'porcentaje' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'}`}>%</button>
-                            <button onClick={() => setTipoDescuento('monto')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition active:scale-95 ${tipoDescuento === 'monto' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'}`}>$ Fijo</button>
+                          <div className={styles.discountTypeRow}>
+                            <button onClick={() => setTipoDescuento('porcentaje')} className={`${styles.discountTypeButton} ${tipoDescuento === 'porcentaje' ? styles.discountTypeActive : ''}`}>%</button>
+                            <button onClick={() => setTipoDescuento('monto')} className={`${styles.discountTypeButton} ${tipoDescuento === 'monto' ? styles.discountTypeActive : ''}`}>$ Fijo</button>
                           </div>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">{tipoDescuento === 'porcentaje' ? '%' : '$'}</span>
-                            <input type="number" placeholder="0" value={valorDescuento} onChange={(e) => setValorDescuento(Number(e.target.value))} className="w-full pl-8 pr-4 py-3 border-2 border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-green-500" min="0" aria-label="Valor del descuento" />
+                          <div className={styles.discountInputWrapper}>
+                            <span className={styles.discountPrefix}>{tipoDescuento === 'porcentaje' ? '%' : '$'}</span>
+                            <input type="number" placeholder="0" value={valorDescuento} onChange={(e) => setValorDescuento(Number(e.target.value))} className={styles.input} min="0" aria-label="Valor del descuento" />
                           </div>
-                          <select value={motivoDescuento} onChange={(e) => setMotivoDescuento(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-green-500" aria-label="Motivo del descuento">
+                          <select value={motivoDescuento} onChange={(e) => setMotivoDescuento(e.target.value)} className={styles.select} aria-label="Motivo del descuento">
                             <option value="Promoción">Promoción</option>
                             <option value="Cliente VIP">Cliente VIP</option>
                             <option value="Pequeño defecto">Pequeño defecto</option>
@@ -668,28 +726,29 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
                   )}
                 </div>
 
-                <div className="bg-green-50 border-2 border-green-200 p-4 rounded-xl shadow-sm lg:hidden">
-                  <div className="mb-3">
-                    <div className="flex justify-between items-center mb-2">
-                      <p className="text-sm text-gray-600">Total a Pagar</p>
-                      <p className="text-xl font-bold text-gray-700">${totalNeto.toFixed(2)}</p>
+                <div className={styles.checkoutMobile}>
+                  <div className={styles.checkoutInfo}>
+                    <div className={styles.totalRow}>
+                      <p className={styles.totalLabel}>Total a Pagar</p>
+                      <p className={styles.totalValue}>${totalNeto.toFixed(2)}</p>
                     </div>
-                    <div className="relative mb-2">
-                      <label className="text-xs text-gray-600 block mb-1">Monto pagado</label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">$</span>
+                    <div className={styles.montoWrapper}>
+                      <label className={styles.montoLabel}>Monto pagado</label>
+                      <div className={styles.montoInputWrapper}>
+                        <span className={styles.montoPrefix}>$</span>
                         <input ref={montoInputRef} type="number" placeholder="0.00" value={montoPagado} onChange={(e) => setMontoPagado(e.target.value)}
-                          className={`w-full pl-8 pr-4 py-4 border-2 rounded-lg text-right text-2xl font-bold focus:outline-none focus:ring-2 transition-all ${getInputColorClasses()}`}
-                          min="0" max={totalNeto} step="0.01" aria-label="Monto pagado" />
+                          className={`${styles.montoInput} ${getInputColorClasses()}`}
+                          min="0" step="0.01" aria-label="Monto pagado" />
                       </div>
-                      <p className={`text-xs mt-1 font-medium ${pagoStatus === 'excess' ? 'text-red-600' : pagoStatus === 'exact' ? 'text-green-600' : pagoStatus === 'partial' ? 'text-yellow-600' : 'text-gray-500'}`}>
+                      <p className={`${styles.montoHelp} ${pagoStatus === 'excess' ? styles.helpBlue : pagoStatus === 'exact' ? styles.helpGreen : pagoStatus === 'partial' ? styles.helpYellow : styles.helpGray}`}>
                         {getMontoHelpText()}
                       </p>
                     </div>
-                    {resta > 0 && pagoStatus === 'partial' && <p className="text-sm text-red-600 font-semibold">Resta: ${resta.toFixed(2)}</p>}
+                    {vuelto > 0 && <p className={styles.vueltoText}>💵 Vuelto a entregar: ${vuelto.toFixed(2)}</p>}
+                    {resta > 0 && pagoStatus === 'partial' && <p className={styles.restaText}>Resta: ${resta.toFixed(2)}</p>}
                   </div>
-                  <button onClick={handleCheckout} disabled={isProcessing || pagoStatus === 'excess'}
-                    className={`w-full font-bold py-4 rounded-xl text-lg shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 min-h-[56px] ${isProcessing || pagoStatus === 'excess' ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}`}
+                  <button onClick={handleCheckout} disabled={isProcessing}
+                    className={`${styles.checkoutButton} ${isProcessing ? styles.checkoutDisabled : ''}`}
                     aria-label="Confirmar">
                     {isProcessing ? 'Procesando...' : <><DollarSign className="w-6 h-6" /> Confirmar</>}
                   </button>
@@ -700,25 +759,26 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
         </div>
 
         {cart.length > 0 && (
-          <div className="hidden lg:block mt-6 bg-white border-2 border-gray-200 p-6 rounded-xl shadow-sm">
-            <div className="flex justify-between items-end">
+          <div className={styles.checkoutDesktop}>
+            <div className={styles.checkoutDesktopContent}>
               <div>
-                <p className="text-sm text-gray-600 mb-1">Total a Pagar</p>
-                <p className="text-3xl font-bold text-green-700">${totalNeto.toFixed(2)}</p>
-                {resta > 0 && <p className="text-sm text-red-600 font-semibold mt-1">Resta: ${resta.toFixed(2)}</p>}
+                <p className={styles.totalLabel}>Total a Pagar</p>
+                <p className={styles.totalValueLarge}>${totalNeto.toFixed(2)}</p>
+                {vuelto > 0 && <p className={styles.vueltoText}>💵 Vuelto: ${vuelto.toFixed(2)}</p>}
+                {resta > 0 && <p className={styles.restaText}>Resta: ${resta.toFixed(2)}</p>}
               </div>
-              <div className="w-64">
-                <label className="text-sm text-gray-600 block mb-2">Monto pagado</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">$</span>
+              <div className={styles.montoDesktopWrapper}>
+                <label className={styles.montoLabel}>Monto pagado</label>
+                <div className={styles.montoInputWrapper}>
+                  <span className={styles.montoPrefix}>$</span>
                   <input type="number" placeholder="0" value={montoPagado} onChange={(e) => setMontoPagado(e.target.value)}
-                    className={`w-full pl-8 pr-4 py-3 border-2 rounded-lg text-right text-lg font-bold focus:outline-none focus:ring-2 transition-all ${getInputColorClasses()}`}
-                    min="0" max={totalNeto} step="0.01" />
+                    className={`${styles.montoInput} ${getInputColorClasses()}`}
+                    min="0" step="0.01" />
                 </div>
-                <p className={`text-xs mt-1 ${pagoStatus === 'excess' ? 'text-red-600' : pagoStatus === 'exact' ? 'text-green-600' : 'text-gray-500'}`}>{getMontoHelpText()}</p>
+                <p className={`${styles.montoHelp} ${pagoStatus === 'excess' ? styles.helpBlue : pagoStatus === 'exact' ? styles.helpGreen : styles.helpGray}`}>{getMontoHelpText()}</p>
               </div>
               <button onClick={handleCheckout} disabled={isProcessing}
-                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg active:scale-[0.98] transition-all flex items-center gap-2 min-h-[56px]">
+                className={`${styles.checkoutButtonDesktop} ${isProcessing ? styles.checkoutDisabled : ''}`}>
                 {isProcessing ? 'Procesando...' : <><DollarSign className="w-6 h-6" /> Confirmar</>}
               </button>
             </div>
@@ -726,18 +786,66 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
         )}
       </div>
 
-      {isScanning && (
-        <div className="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center z-50 p-4">
-          <div className="relative w-full max-w-md">
-            <div className="relative w-full h-80 bg-black rounded-2xl overflow-hidden border-4 border-green-500 shadow-2xl">
-              <video id="video" className="w-full h-full object-cover" autoPlay playsInline />
-              <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] animate-pulse" />
-              </div>
+      {/* ============ TICKET VISUAL (oculto, solo para html2canvas) ============ */}
+      <div ref={ticketRef} className={styles.ticketContainer}>
+        <div className={styles.ticketHeader}>
+          <h3>{localConfig?.nombre?.toUpperCase() || 'COMPROBANTE DE VENTA'}</h3>
+          <p>{new Date().toLocaleString('es-AR')}</p>
+        </div>
+        <div className={styles.ticketBody}>
+          {cart.map((item, i) => (
+            <div key={i} className={styles.ticketItem}>
+              <p className={styles.ticketItemName}>{item.quantity}x {item.nombre}</p>
+              {(item.talle || item.color) && <p className={styles.ticketItemVariant}>{item.talle} {item.color}</p>}
+              <p className={styles.ticketItemPrice}>${(item.precio * item.quantity).toFixed(2)}</p>
             </div>
-            <div className="mt-6 text-center">
-              <h3 className="text-xl font-bold text-white mb-2">Escaneá el código</h3>
-              <button onClick={handleCloseScan} className="bg-red-600 hover:bg-red-700 text-white w-full py-3 rounded-xl text-lg font-semibold active:scale-95 transition">
+          ))}
+        </div>
+        <div className={styles.ticketFooter}>
+          <div className={styles.ticketTotalRow}>
+            <span>Subtotal:</span>
+            <span>${totalBruto.toFixed(2)}</span>
+          </div>
+          {aplicarDescuento && descuentoMonto > 0 && (
+            <div className={styles.ticketTotalRow}>
+              <span>Descuento ({motivoDescuento}):</span>
+              <span>-${descuentoMonto.toFixed(2)}</span>
+            </div>
+          )}
+          <div className={styles.ticketTotalRowLarge}>
+            <span>TOTAL:</span>
+            <span>${totalNeto.toFixed(2)}</span>
+          </div>
+          {vuelto > 0 && (
+            <>
+              <div className={styles.ticketTotalRow}>
+                <span>Pagado:</span>
+                <span>${montoPagadoNum.toFixed(2)}</span>
+              </div>
+              <div className={styles.ticketTotalRow}>
+                <span>Vuelto:</span>
+                <span>${vuelto.toFixed(2)}</span>
+              </div>
+            </>
+          )}
+          {localConfig?.instagram && (
+            <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#6b7280', marginTop: '0.75rem' }}>
+              @{localConfig.instagram}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {isScanning && (
+        <div className={styles.scanOverlay}>
+          <div className={styles.scanContainer}>
+            <div className={styles.scanVideo}>
+              <video id="video" className={styles.videoElement} autoPlay playsInline />
+              <div className={styles.scanLine} />
+            </div>
+            <div className={styles.scanFooter}>
+              <h3 className={styles.scanTitle}>Escaneá el código</h3>
+              <button onClick={handleCloseScan} className={styles.cancelScanButton}>
                 <X className="w-5 h-5 inline mr-2" /> Cancelar
               </button>
             </div>
