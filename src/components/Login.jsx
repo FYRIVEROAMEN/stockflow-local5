@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import logoMate from '../assets/LogoStockShopUsable.png'
 import styles from './Login.module.css'
 
+
 function Login() {
   const { loginConGoogle } = useAuth()
   const [email, setEmail] = useState('')

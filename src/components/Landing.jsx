@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import logoMate from '../assets/LogoStockShopUsable.png'
 
 // 🐵 ÍCONOS Y COMPONENTES VISUALES
 const Check = () => <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M5 13l4 4L19 7"/></svg>;
@@ -75,7 +76,7 @@ export default function Landing() {
         className="max-w-7xl mx-auto px-4 sm:px-8 py-3.5 sm:py-5 flex items-center justify-between relative z-50 bg-white/95 backdrop-blur"
       >
         <a href="/" className="flex items-center gap-2">
-          <img src="src/assets/LogoStockShopUsable.png" alt="Logo StockShop" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" />
+          <img src={logoMate} alt="Logo StockShop" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" />
           <b className="text-lg sm:text-[1.65rem] tracking-tight text-[#08285B]">Stock<span className="text-[#3882F6]">Shop</span></b>
           <span className="hidden sm:block mt-1">🇦🇷</span>
         </a>
@@ -288,7 +289,7 @@ export default function Landing() {
       <footer className="border-t border-slate-100 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
           <div className="flex items-center justify-center sm:justify-start gap-2">
-            <img src="src/assets/LogoStockShopUsable.png" alt="Logo StockShop" className="w-5 h-5 sm:w-6 sm:h-6 object-contain grayscale opacity-60" />
+            <img src={logoMate} alt="Logo StockShop" className="w-5 h-5 sm:w-6 sm:h-6 object-contain grayscale opacity-60" />
             <b className="text-sm sm:text-base text-[#08285B]">Stock<span className="text-[#3882F6]">Shop</span></b>
             <span className="text-xs">🇦🇷</span>
           </div>
