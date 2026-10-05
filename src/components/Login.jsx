@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { AlertTriangle, Eye, EyeOff, CheckCircle, Mail, Lock, ArrowRight } from 'lucide-react'
 import { login } from '../services/authService'
 import { useAuth } from '../context/AuthContext'
-import logoMate from '../assets/MateLogoUtil.png'
+import logoMate from '../assets/LogoStockShopUsable.png'
 import styles from './Login.module.css'
 
 function Login() {

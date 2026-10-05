@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import html2canvas from 'html2canvas'
-import { Search, Plus, Trash2, ShoppingCart, Minus, X, Barcode, User, Phone, DollarSign, Tag, ChevronDown, ChevronUp } from 'lucide-react'
+import { Search, Plus, Trash2, ShoppingCart, Minus, X, Barcode, User, Phone, DollarSign, Tag, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react'
 import { 
   updateProducto, createVenta, createDetalleVenta, crearOActualizarCliente, 
   registrarPago, actualizarEstadoPagoVenta, updateVentaCliente, getVariantes,
@@ -72,6 +72,11 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
 
   // ============ CONFIG MULTI-TENANT DEL LOCAL ============
   const [localConfig, setLocalConfig] = useState(null)
+
+  // ============ MODAL DE ÉXITO (canales de entrega) ============
+  const [showSuccess, setShowSuccess] = useState(false)
+  const [successData, setSuccessData] = useState(null)
+  const [telefonoSuccess, setTelefonoSuccess] = useState('')
   
   const codeReaderRef = useRef(null)
   const isCancelledRef = useRef(false)
@@ -118,6 +123,7 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(pattern)
   }, [])
 
+  // ⚠️ Chequea stock comprometido por pedidos web sin confirmar
   const chequearReservado = async (variante, cantidadPedida) => {
     if (!variante) return true
     const { data: map } = await getStockReservado([variante.id])
@@ -150,6 +156,7 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
     return true
   }
 
+  // Flujo 1: desde el buscador / escáner
   const addToCart = useCallback(async (product) => {
     triggerHaptic(20)
     
@@ -208,6 +215,7 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
     setFilteredProducts([])
   }, [cart, triggerHaptic, productos])
 
+  // Flujo 2: desde el carrito (ítem sin variante, viene del Dashboard)
   const abrirSelectorParaItem = async (item) => {
     try {
       const { data } = await getVariantes(item.id)
@@ -231,6 +239,7 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
     }
   }
 
+  // Agregar variante: maneja ambos modos (nuevo y asignar)
   const agregarConVariante = async (variante) => {
     if (asignandoItem) {
       if (!(await chequearReservado(variante, 1))) return
@@ -333,6 +342,48 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
     }
   }
 
+  // ============ CANALES DE ENTREGA DEL COMPROBANTE ============
+  const imprimirTicket = () => {
+    window.print() // diálogo del sistema: térmica Bluetooth o "Guardar PDF"
+  }
+
+  const compartirImagen = async () => {
+    try {
+      const img = successData?.ticketImg
+      if (!img) return Swal.fire('No se pudo generar el ticket', 'Probá con imprimir o texto.', 'warning')
+      const blob = await (await fetch(img)).blob()
+      const file = new File([blob], `comprobante-${successData.ventaId}.png`, { type: 'image/png' })
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        // menú nativo del celu → WhatsApp con la imagen ADJUNTA
+        await navigator.share({ files: [file], title: `Comprobante #${successData.ventaId}` })
+      } else {
+        const link = document.createElement('a')
+        link.download = `comprobante-${successData.ventaId}.png`
+        link.href = img
+        link.click()
+        Swal.fire('Imagen descargada', 'Adjuntala en el chat de WhatsApp manualmente.', 'info')
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') Swal.fire('Error al compartir', err.message, 'error')
+    }
+  }
+
+  const enviarTextoWhatsApp = () => {
+    const tel = telefonoSuccess.trim()
+    if (!tel) return Swal.fire('Ingresá un teléfono', 'Lo necesito para abrir el chat de WhatsApp.', 'warning')
+    window.open(`https://wa.me/${formatWhatsAppNumber(tel)}?text=${encodeURIComponent(successData.mensaje)}`, '_blank')
+  }
+
+  const cerrarSuccess = () => {
+    setShowSuccess(false)
+    setSuccessData(null)
+    setCart([]); setClienteTelefono(''); setClienteNombre(''); setMontoPagado('')
+    setAplicarDescuento(false); setValorDescuento(0); setMotivoDescuento('Promoción')
+    localStorage.removeItem('stockShop_cart')
+    triggerHaptic([50, 100, 50])
+    onSaleRecorded()
+  }
+
   const handleCheckout = async () => {
     if (cart.length === 0) return Swal.fire({ title: 'Carrito vacío', icon: 'warning', confirmButtonColor: '#dc2626' })
     if (!clienteTelefono.trim()) return Swal.fire({ title: 'Teléfono requerido', text: 'Necesario para registrar la venta y el sorteo.', icon: 'warning', confirmButtonColor: '#dc2626' })
@@ -389,70 +440,31 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
       await actualizarEstadoPagoVenta(ventaId, estadoPago)
 
       const fecha = new Date().toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-      
-      // Generar ticket visual
       const ticketImg = await generarTicketImagen()
 
-      // Mensaje de WhatsApp (cierre dinámico desde config del local)
-      let mensajeWhatsApp = `*COMPROBANTE DE VENTA*\n━━━━━━━━━━━━━━━━━━━━\n📅 ${fecha}\n Venta #${ventaId}\n━━━━━━━━━━━━━━━━━━━━\n\n*PRODUCTOS:*\n`
-      cart.forEach(item => { 
+      // texto mejorado: sin emojis raros, con identidad del local
+      let mensajeWhatsApp = `*${(localConfig?.nombre || 'COMPROBANTE DE VENTA').toUpperCase()}*\n`
+      mensajeWhatsApp += `Venta #${ventaId} · ${fecha}\n──────────────────\n`
+      cart.forEach(item => {
         mensajeWhatsApp += `${item.quantity}x ${item.nombre}`
-        if (item.talle || item.color) mensajeWhatsApp += ` (${item.talle || ''} ${item.color || ''})`.trim()
-        mensajeWhatsApp += `\n   $${(item.precio * item.quantity).toFixed(2)}\n` 
+        if (item.talle || item.color) mensajeWhatsApp += ` (${[item.talle, item.color].filter(Boolean).join(' ')})`
+        mensajeWhatsApp += `\n   $${(item.precio * item.quantity).toLocaleString('es-AR')}\n`
       })
-      mensajeWhatsApp += `\n━━━━━━━━━━━━━━━━━━━━\n*Subtotal: $${totalBruto.toFixed(2)}*\n`
-      if (aplicarDescuento && descuentoMonto > 0) mensajeWhatsApp += `*Descuento (${motivoDescuento}): -$${descuentoMonto.toFixed(2)}*\n`
-      mensajeWhatsApp += `*TOTAL: $${totalNeto.toFixed(2)}*\n`
-      if (montoPagadoNum > totalNeto) mensajeWhatsApp += `*Pagado: $${montoPagadoNum.toFixed(2)}*\n*Vuelto: $${vuelto.toFixed(2)}*\n`
-      else if (montoPagadoNum < totalNeto) mensajeWhatsApp += `*Pagado: $${montoPagadoNum.toFixed(2)}*\n*Resta: $${resta.toFixed(2)}*\n`
-      mensajeWhatsApp += `━━━━━━━━━━━━━━━━━━━━\n\n`
-      
-      // CIERRE DINÁMICO MULTI-TENANT (sin hardcodeos)
-      if (localConfig?.ticket_footer) {
-        mensajeWhatsApp += localConfig.ticket_footer
-      } else {
+      mensajeWhatsApp += `──────────────────\n`
+      if (aplicarDescuento && descuentoMonto > 0) mensajeWhatsApp += `Descuento (${motivoDescuento}): -$${descuentoMonto.toLocaleString('es-AR')}\n`
+      mensajeWhatsApp += `*TOTAL: $${totalNeto.toLocaleString('es-AR')}*\n`
+      if (montoPagadoNum > totalNeto) mensajeWhatsApp += `Pagado: $${montoPagadoNum.toLocaleString('es-AR')} · Vuelto: $${vuelto.toLocaleString('es-AR')}\n`
+      else if (montoPagadoNum < totalNeto) mensajeWhatsApp += `Pagado: $${montoPagadoNum.toLocaleString('es-AR')} · Resta: $${resta.toLocaleString('es-AR')}\n`
+      mensajeWhatsApp += `──────────────────\n`
+      if (localConfig?.ticket_footer) mensajeWhatsApp += localConfig.ticket_footer
+      else {
         mensajeWhatsApp += `¡Gracias por tu compra!`
-        if (localConfig?.instagram) mensajeWhatsApp += `\n✅ Seguinos en Instagram @${localConfig.instagram}`
+        if (localConfig?.instagram) mensajeWhatsApp += `\n@${localConfig.instagram}`
       }
 
-      const result = await Swal.fire({
-        title: '¡Venta Registrada! ✅',
-        html: `
-          <div style="text-align: left;">
-            <p><strong>Total:</strong> <span style="color: #16a34a; font-size: 1.5rem; font-weight: bold;">$${totalNeto.toFixed(2)}</span></p>
-            ${vuelto > 0 ? `<p><strong>Vuelto:</strong> <span style="color: #2563eb; font-weight: bold;">$${vuelto.toFixed(2)}</span></p>` : ''}
-            ${resta > 0 ? `<p><strong>Resta:</strong> <span style="color: #dc2626; font-weight: bold;">$${resta.toFixed(2)}</span></p>` : ''}
-            <hr style="margin: 15px 0;" />
-            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Enviar comprobante:</label>
-            <input id="swal-whatsapp-input" type="tel" placeholder="Ej: 11 1234 5678" style="width: 100%; padding: 12px; border: 2px solid #d1d5db; border-radius: 8px; font-size: 16px;" value="${clienteTelefono}" />
-          </div>
-        `,
-        icon: 'success', 
-        showCancelButton: true, 
-        confirmButtonColor: '#25D366', 
-        cancelButtonColor: '#6b7280',
-        confirmButtonText: '📱 Enviar por WhatsApp', 
-        cancelButtonText: 'Solo cerrar',
-        showDenyButton: ticketImg ? true : false,
-        denyButtonColor: '#3b82f6',
-        denyButtonText: '💾 Descargar imagen',
-        preConfirm: () => document.getElementById('swal-whatsapp-input').value
-      })
-
-      if (result.isConfirmed && result.value) {
-        window.open(`https://wa.me/${formatWhatsAppNumber(result.value)}?text=${encodeURIComponent(mensajeWhatsApp)}`, '_blank')
-      } else if (result.isDenied && ticketImg) {
-        const link = document.createElement('a')
-        link.download = `comprobante-${ventaId}.png`
-        link.href = ticketImg
-        link.click()
-      }
-      
-      triggerHaptic([50, 100, 50])
-      setCart([]); setClienteTelefono(''); setClienteNombre(''); setMontoPagado('')
-      setAplicarDescuento(false); setValorDescuento(0); setMotivoDescuento('Promoción')
-      localStorage.removeItem('stockShop_cart')
-      onSaleRecorded()
+      setSuccessData({ ventaId, total: totalNeto, vuelto, ticketImg, mensaje: mensajeWhatsApp })
+      setTelefonoSuccess(clienteTelefono)
+      setShowSuccess(true)
     } catch (err) {
       Swal.fire({ title: 'Error', text: err.message, icon: 'error', confirmButtonColor: '#dc2626' })
     } finally {
@@ -504,9 +516,9 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
 
   const getMontoHelpText = () => {
     switch(pagoStatus) {
-      case 'excess': return `✅ Vuelto: $${vuelto.toFixed(2)}`
+      case 'excess': return `✅ Vuelto: $${vuelto.toLocaleString('es-AR')}`
       case 'exact': return '✅ Pago exacto'
-      case 'partial': return `⚠️ Falta: $${resta.toFixed(2)}`
+      case 'partial': return `⚠️ Falta: $${resta.toLocaleString('es-AR')}`
       default: return 'Ingresá el monto recibido'
     }
   }
@@ -604,7 +616,7 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
                     <div className={styles.resultInfo}>
                       <p className={styles.resultName} title={product.nombre}>{product.nombre}</p>
                       <p className={styles.resultMeta}>{product.categoria} | T: {product.talle || 'N/A'} | C: {product.color || 'N/A'}</p>
-                      <p className={styles.resultPrice}>Stock: {product.stock} | ${Number(product.precio).toFixed(2)}</p>
+                      <p className={styles.resultPrice}>Stock: {product.stock} | ${Number(product.precio).toLocaleString('es-AR')}</p>
                     </div>
                     {product.stock > 0 && <div className={styles.addIcon}><Plus className="w-5 h-5" /></div>}
                   </div>
@@ -638,7 +650,7 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
                               {item.color && <span>Color: {item.color}</span>}
                             </p>
                           )}
-                          <p className={styles.itemPrice}>${Number(item.precio).toFixed(2)} c/u</p>
+                          <p className={styles.itemPrice}>${Number(item.precio).toLocaleString('es-AR')} c/u</p>
                           {!item.variante_id && (
                             <button onClick={() => abrirSelectorParaItem(item)} className={styles.assignButton}>
                               🎯 Elegir talle / color
@@ -730,7 +742,7 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
                   <div className={styles.checkoutInfo}>
                     <div className={styles.totalRow}>
                       <p className={styles.totalLabel}>Total a Pagar</p>
-                      <p className={styles.totalValue}>${totalNeto.toFixed(2)}</p>
+                      <p className={styles.totalValue}>${totalNeto.toLocaleString('es-AR')}</p>
                     </div>
                     <div className={styles.montoWrapper}>
                       <label className={styles.montoLabel}>Monto pagado</label>
@@ -744,8 +756,8 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
                         {getMontoHelpText()}
                       </p>
                     </div>
-                    {vuelto > 0 && <p className={styles.vueltoText}>💵 Vuelto a entregar: ${vuelto.toFixed(2)}</p>}
-                    {resta > 0 && pagoStatus === 'partial' && <p className={styles.restaText}>Resta: ${resta.toFixed(2)}</p>}
+                    {vuelto > 0 && <p className={styles.vueltoText}>💵 Vuelto a entregar: ${vuelto.toLocaleString('es-AR')}</p>}
+                    {resta > 0 && pagoStatus === 'partial' && <p className={styles.restaText}>Resta: ${resta.toLocaleString('es-AR')}</p>}
                   </div>
                   <button onClick={handleCheckout} disabled={isProcessing}
                     className={`${styles.checkoutButton} ${isProcessing ? styles.checkoutDisabled : ''}`}
@@ -763,9 +775,9 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
             <div className={styles.checkoutDesktopContent}>
               <div>
                 <p className={styles.totalLabel}>Total a Pagar</p>
-                <p className={styles.totalValueLarge}>${totalNeto.toFixed(2)}</p>
-                {vuelto > 0 && <p className={styles.vueltoText}>💵 Vuelto: ${vuelto.toFixed(2)}</p>}
-                {resta > 0 && <p className={styles.restaText}>Resta: ${resta.toFixed(2)}</p>}
+                <p className={styles.totalValueLarge}>${totalNeto.toLocaleString('es-AR')}</p>
+                {vuelto > 0 && <p className={styles.vueltoText}>💵 Vuelto: ${vuelto.toLocaleString('es-AR')}</p>}
+                {resta > 0 && <p className={styles.restaText}>Resta: ${resta.toLocaleString('es-AR')}</p>}
               </div>
               <div className={styles.montoDesktopWrapper}>
                 <label className={styles.montoLabel}>Monto pagado</label>
@@ -786,7 +798,7 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
         )}
       </div>
 
-      {/* ============ TICKET VISUAL (oculto, solo para html2canvas) ============ */}
+      {/* ============ TICKET VISUAL (oculto: lo usan html2canvas y la impresión) ============ */}
       <div ref={ticketRef} className={styles.ticketContainer}>
         <div className={styles.ticketHeader}>
           <h3>{localConfig?.nombre?.toUpperCase() || 'COMPROBANTE DE VENTA'}</h3>
@@ -797,34 +809,34 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
             <div key={i} className={styles.ticketItem}>
               <p className={styles.ticketItemName}>{item.quantity}x {item.nombre}</p>
               {(item.talle || item.color) && <p className={styles.ticketItemVariant}>{item.talle} {item.color}</p>}
-              <p className={styles.ticketItemPrice}>${(item.precio * item.quantity).toFixed(2)}</p>
+              <p className={styles.ticketItemPrice}>${(item.precio * item.quantity).toLocaleString('es-AR')}</p>
             </div>
           ))}
         </div>
         <div className={styles.ticketFooter}>
           <div className={styles.ticketTotalRow}>
             <span>Subtotal:</span>
-            <span>${totalBruto.toFixed(2)}</span>
+            <span>${totalBruto.toLocaleString('es-AR')}</span>
           </div>
           {aplicarDescuento && descuentoMonto > 0 && (
             <div className={styles.ticketTotalRow}>
               <span>Descuento ({motivoDescuento}):</span>
-              <span>-${descuentoMonto.toFixed(2)}</span>
+              <span>-${descuentoMonto.toLocaleString('es-AR')}</span>
             </div>
           )}
           <div className={styles.ticketTotalRowLarge}>
             <span>TOTAL:</span>
-            <span>${totalNeto.toFixed(2)}</span>
+            <span>${totalNeto.toLocaleString('es-AR')}</span>
           </div>
           {vuelto > 0 && (
             <>
               <div className={styles.ticketTotalRow}>
                 <span>Pagado:</span>
-                <span>${montoPagadoNum.toFixed(2)}</span>
+                <span>${montoPagadoNum.toLocaleString('es-AR')}</span>
               </div>
               <div className={styles.ticketTotalRow}>
                 <span>Vuelto:</span>
-                <span>${vuelto.toFixed(2)}</span>
+                <span>${vuelto.toLocaleString('es-AR')}</span>
               </div>
             </>
           )}
@@ -835,6 +847,44 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
           )}
         </div>
       </div>
+
+      {/* ============ MODAL DE ÉXITO CON CANALES DE ENTREGA ============ */}
+      {showSuccess && successData && (
+        <div className={styles.successOverlay}>
+          <div className={styles.successModal}>
+            <CheckCircle2 size={48} className={styles.successIcon} />
+            <h3 className={styles.successTitle}>¡Venta registrada!</h3>
+            <p className={styles.successTotal}>Total: <strong>${successData.total.toLocaleString('es-AR')}</strong></p>
+            {successData.vuelto > 0 && (
+              <p className={styles.successVuelto}>💵 Vuelto a entregar: ${successData.vuelto.toLocaleString('es-AR')}</p>
+            )}
+
+            <div className={styles.successActions}>
+              <button onClick={imprimirTicket} className={`${styles.actionBtn} ${styles.actionBtnPrint}`}>
+                🖨️ Imprimir ticket / PDF
+              </button>
+              <button onClick={compartirImagen} className={`${styles.actionBtn} ${styles.actionBtnShare}`}>
+                📤 WhatsApp con imagen
+              </button>
+              <div className={styles.successPhoneRow}>
+                <input
+                  type="tel"
+                  placeholder="Teléfono del cliente"
+                  value={telefonoSuccess}
+                  onChange={(e) => setTelefonoSuccess(e.target.value)}
+                  className={styles.successPhoneInput}
+                />
+                <button onClick={enviarTextoWhatsApp} className={`${styles.actionBtn} ${styles.actionBtnText}`}>
+                  📝 Texto
+                </button>
+              </div>
+              <button onClick={cerrarSuccess} className={`${styles.actionBtn} ${styles.actionBtnClose}`}>
+                ✅ Nueva venta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isScanning && (
         <div className={styles.scanOverlay}>
