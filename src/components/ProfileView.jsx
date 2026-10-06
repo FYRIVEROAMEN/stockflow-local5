@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { User, Globe, KeyRound, Save, Edit2, ChevronDown } from 'lucide-react'
+import { User, Globe, KeyRound, Save, Edit2, ChevronDown, Ticket } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { cambiarPassword, activarWeb, desactivarWeb, updateNombreProfile, updateNombreLocal } from '../services/authService'
 import TarjetaWeb from './TarjetaWeb'
 import styles from './ProfileView.module.css'
 
-export default function ProfileView() {
+export default function ProfileView({ onNavigate }) {
   const { session, profile, refreshProfile } = useAuth()
   const [webActiva, setWebActiva] = useState(profile?.locales?.web_activa || false)
   const [operando, setOperando] = useState(false)
@@ -188,6 +188,47 @@ export default function ProfileView() {
             </form>
           </div>
         )}
+      </section>
+
+      {/* ============ ACCESO: COMPROBANTE DE VENTA ============ */}
+      <section
+        onClick={() => onNavigate?.('configticket')}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onNavigate?.('configticket') }}
+        style={{
+          background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+          border: '2px dashed #94a3b8',
+          borderRadius: '0.75rem',
+          padding: '0.875rem 1rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '0.75rem',
+          cursor: 'pointer',
+          transition: 'all 0.15s ease'
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = '#eff6ff' }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#94a3b8'; e.currentTarget.style.background = 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+          <div style={{
+            width: '2.5rem', height: '2.5rem', borderRadius: '0.625rem',
+            background: '#dbeafe', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', flexShrink: 0
+          }}>
+            <Ticket size={20} color="#1d4ed8" />
+          </div>
+          <div>
+            <p style={{ fontWeight: 700, color: '#1f2937', fontSize: '0.9375rem', margin: 0 }}>
+              Comprobante de venta
+            </p>
+            <p style={{ color: '#64748b', fontSize: '0.75rem', margin: '2px 0 0' }}>
+              Editá las promos y el Instagram que salen al pie del ticket
+            </p>
+          </div>
+        </div>
+        <ChevronDown size={20} color="#94a3b8" style={{ transform: 'rotate(-90deg)' }} />
       </section>
     </div>
   )

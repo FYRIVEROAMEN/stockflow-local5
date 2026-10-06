@@ -1,0 +1,26 @@
+.banner { display: flex; align-items: center; gap: 0.75rem; border-radius: 0.75rem; padding: 0.75rem 1rem; cursor: pointer; border: 1px solid; transition: transform 0.15s; }
+.banner:active { transform: scale(0.99); }
+.bannerTrial { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+.bannerOk { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
+.bannerRojo { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+.textos { flex: 1; min-width: 0; }
+.titulo { font-weight: 700; font-size: 0.875rem; margin: 0; }
+.sub { font-size: 0.6875rem; opacity: 0.8; margin: 2px 0 0; }
+.flecha { font-size: 1.25rem; opacity: 0.6; }
+
+.overlay { position: fixed; inset: 0; background: rgb(0 0 0 / 0.6); display: flex; align-items: center; justify-content: center; z-index: 90; padding: 1rem; }
+.modal { background: white; border-radius: 1rem; width: 100%; max-width: 24rem; max-height: 90vh; overflow-y: auto; }
+.modalHeader { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid #e5e7eb; }
+.modalHeader h3 { margin: 0; font-size: 1.125rem; font-weight: 800; color: #111827; }
+.close { background: #f3f4f6; border: none; border-radius: 9999px; width: 2rem; height: 2rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #374151; }
+.modalBody { padding: 1rem 1.25rem 1.25rem; display: flex; flex-direction: column; gap: 0.625rem; }
+
+.planCard { border: 2px solid #e5e7eb; border-radius: 0.75rem; padding: 0.75rem 1rem; }
+.planDestacado { border-color: #2563eb; background: #eff6ff; }
+.planNombre { font-weight: 800; font-size: 0.875rem; color: #111827; margin: 0; }
+.planPrecio { font-weight: 700; font-size: 1rem; color: #2563eb; margin: 2px 0; }
+.planDesc { font-size: 0.6875rem; color: #6b7280; margin: 0; }
+
+.waBtn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: #25D366; color: white; text-decoration: none; border-radius: 0.75rem; padding: 0.875rem; font-weight: 700; font-size: 0.9375rem; margin-top: 0.25rem; }
+.waBtn:hover { background: #1ebe5b; }
+.nota { font-size: 0.6875rem; color: #9ca3af; text-align: center; margin: 0; }

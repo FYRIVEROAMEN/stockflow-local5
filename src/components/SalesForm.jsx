@@ -343,8 +343,63 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
   }
 
   // ============ CANALES DE ENTREGA DEL COMPROBANTE ============
-  const imprimirTicket = () => {
-    window.print() // diálogo del sistema: térmica Bluetooth o "Guardar PDF"
+   const imprimirTicket = () => {
+    const itemsHtml = cart.map(item => `
+      <div style="margin-bottom:6px;">
+        <div style="font-weight:700;">${item.quantity}x ${item.nombre}</div>
+        ${(item.talle || item.color) ? `<div style="font-size:10px;color:#444;">${[item.talle, item.color].filter(Boolean).join(' ')}</div>` : ''}
+        <div style="text-align:right;font-weight:700;">$${(item.precio * item.quantity).toLocaleString('es-AR')}</div>
+      </div>
+    `).join('')
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="utf-8" />
+        <title>Ticket #${successData?.ventaId || ''}</title>
+        <style>
+          @page { size: 80mm auto; margin: 0; }
+          * { box-sizing: border-box; }
+          body {
+            width: 76mm; margin: 0 auto; padding: 3mm 2mm;
+            font-family: 'Courier New', monospace; font-size: 12px; color: #000;
+          }
+          .c { text-align: center; }
+          .b { font-weight: 700; }
+          .row { display: flex; justify-content: space-between; }
+          hr { border: none; border-top: 1px dashed #000; margin: 6px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="c b" style="font-size:15px;letter-spacing:2px;">${(localConfig?.nombre || 'COMPROBANTE').toUpperCase()}</div>
+        <div class="c" style="font-size:10px;">${new Date().toLocaleString('es-AR')}</div>
+        <div class="c" style="font-size:10px;">Ticket #${successData?.ventaId || ''}</div>
+        <hr/>
+        ${itemsHtml}
+        <hr/>
+        <div class="row"><span>Subtotal:</span><span>$${totalBruto.toLocaleString('es-AR')}</span></div>
+        ${aplicarDescuento && descuentoMonto > 0 ? `<div class="row"><span>Descuento (${motivoDescuento}):</span><span>-$${descuentoMonto.toLocaleString('es-AR')}</span></div>` : ''}
+        <div class="row b" style="font-size:14px;margin-top:4px;"><span>TOTAL:</span><span>$${totalNeto.toLocaleString('es-AR')}</span></div>
+        ${vuelto > 0 ? `
+          <div class="row"><span>Pagado:</span><span>$${montoPagadoNum.toLocaleString('es-AR')}</span></div>
+          <div class="row"><span>Vuelto:</span><span>$${vuelto.toLocaleString('es-AR')}</span></div>
+        ` : ''}
+        <hr/>
+        ${localConfig?.ticket_footer
+          ? `<div class="c" style="font-size:10px;">${localConfig.ticket_footer.replace(/\n/g, '<br/>')}</div>`
+          : `<div class="c" style="font-size:10px;">¡Gracias por tu compra!</div>`}
+        ${localConfig?.instagram ? `<div class="c" style="font-size:10px;">@${localConfig.instagram}</div>` : ''}
+      </body>
+      </html>
+    `
+
+    const w = window.open('', '_blank', 'width=420,height=640')
+    if (!w) return Swal.fire('Ventana bloqueada', 'Habilitá las ventanas emergentes para poder imprimir.', 'warning')
+    w.document.write(html)
+    w.document.close()
+    w.focus()
+    setTimeout(() => w.print(), 300)
   }
 
   const compartirImagen = async () => {
@@ -703,7 +758,7 @@ function SalesForm({ onSaleRecorded, productos, cart, setCart }) {
 
                 <div className={styles.sectionCard}>
                   <div className={styles.discountWrapper}>
-                    <Tooltip text="Aplicá descuentos por promoción o cliente VIP" show={showDiscountTooltip && firstUse} onClose={() => setShowDiscountTooltip(false)} />
+                    
                     <button onClick={() => setShowDiscount(!showDiscount)} className={styles.sectionToggle} aria-expanded={showDiscount} aria-label="Descuentos">
                       <h4 className={styles.sectionTitle}><Tag className="w-5 h-5" /> Descuentos</h4>
                       {showDiscount ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}

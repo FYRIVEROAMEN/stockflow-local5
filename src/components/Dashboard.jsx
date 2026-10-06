@@ -17,6 +17,9 @@ import MetricsView from './MetricsView'
 import ClientesView from './ClientesView'
 import GastosView from './GastosView'
 import ProfileView from './ProfileView'
+import ConfigTicketView from './ConfigTicketView'
+import LocalAvatar from './LocalAvatar'
+import BannerPlan from './BannerPlan'
 
 import styles from './Dashboard.module.css'
 
@@ -294,7 +297,7 @@ function Dashboard({ onLogout }) {
   return (
     <div className={`min-h-screen pb-32 md:pb-8 ${styles.root}`}>
       {/* ============ HEADER ============ */}
-      <header className={`${styles.header} ${scrolled ? styles.headerScrolled : styles.headerNormal}`}>
+            <header className={`${styles.header} ${scrolled ? styles.headerScrolled : styles.headerNormal}`}>
         <div className={styles.headerInner}>
           <h1 className={styles.logo}>
             <div className={`${styles.logoIcon} ${scrolled ? styles.logoIconSmall : styles.logoIconBig}`}>
@@ -302,6 +305,8 @@ function Dashboard({ onLogout }) {
             </div>
             <span className={styles.logoText}>Stock<span className={styles.logoAccent}>Shop</span></span>
           </h1>
+          {/* ============ AVATAR DEL LOCAL (white-label) ============ */}
+          <LocalAvatar size={36} onClick={() => irA('profile')} />
           <button onClick={onLogout} className={`btn btn-secondary touch-target ${styles.soloDesktop}`}>
             <LogOut className="w-5 h-5" /> Salir
           </button>
@@ -357,7 +362,7 @@ function Dashboard({ onLogout }) {
               <p className={styles.greetingLocal}>{profile?.locales?.nombre || 'Tu comercio'}</p>
 
               <div className={styles.heroCard}>
-                <div className={styles.heroLogo}><Package className="w-7 h-7" /></div>
+                <LocalAvatar size={48} onClick={() => irA('profile')} />
                 <div>
                   <p className={styles.heroName}>{profile?.locales?.nombre || 'Tu comercio'}</p>
                   <p className={styles.heroSub}>{totalProductos} productos · {totalStock} unidades</p>
@@ -405,13 +410,16 @@ function Dashboard({ onLogout }) {
               </div>
 
               <button onClick={() => irA('importar')} className={styles.importCard}>
-  <div className={styles.importIcon}><Upload size={22} /></div>
-  <div className={styles.importInfo}>
-    <p className={styles.importTitle}>Importar stock masivamente</p>
-    <p className={styles.importHint}>Cargá tu catálogo desde CSV en minutos</p>
-  </div>
-  <ChevronRight size={18} className={styles.importChevron} />
-</button>
+        <div className={styles.importIcon}><Upload size={22} /></div>
+        <div className={styles.importInfo}>
+          <p className={styles.importTitle}>Importar stock masivamente</p>
+          <p className={styles.importHint}>Cargá tu catálogo desde CSV en minutos</p>
+        </div>
+        <ChevronRight size={18} className={styles.importChevron} />
+      </button>
+
+      {/* ============ PLANES / PRUEBA GRATIS ============ */}
+      <BannerPlan />
             </div>
 
             {/* ----- DESKTOP ----- */}
@@ -707,7 +715,9 @@ function Dashboard({ onLogout }) {
         ) : currentView === 'pedidos' ? (
           <PedidosWebView onCambios={fetchPedidosCount} />
         ) : currentView === 'profile' ? (
-          <ProfileView />
+           <ProfileView onNavigate={(v) => irA(v)} />
+        ) : currentView === 'configticket' ? (
+          <ConfigTicketView onBack={() => irA('profile')} />
         ) : currentView === 'importar' ? (
           <ImportProductsView onBack={() => irA('home')} onDone={() => { fetchProductos(); irA('inventario') }} />
         ) : null}

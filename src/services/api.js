@@ -552,11 +552,16 @@ export const actualizarEstadoPedidoWeb = async (pedidoId, estado) => {
 export const getLocalConfig = async (localId) => {
   const { data, error } = await supabase
     .from('locales')
-    .select('nombre, instagram, ticket_footer')
+    .select('nombre, instagram, ticket_footer, config, creado_en, plan')
     .eq('id', localId)
     .single()
   if (error) throw error
-  return data
+  const cleanIg = (v) => (v ? String(v).trim().replace(/^@/, '') : null)
+  return {
+    ...data,
+    instagram: cleanIg(data.instagram || data.config?.instagram),
+    ticket_footer: data.ticket_footer || data.config?.ticket_footer || null
+  }
 }
 
 
