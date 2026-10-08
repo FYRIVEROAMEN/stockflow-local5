@@ -21,6 +21,8 @@ function BannerPlan() {
   const dias = creado ? Math.max(0, DIAS_PRUEBA - Math.floor((Date.now() - creado.getTime()) / 86400000)) : 0
   const esPago = cfg.plan === 'pago'
   const vencida = !esPago && dias === 0
+  if (esPago) return null
+  
 
   return (
     <>

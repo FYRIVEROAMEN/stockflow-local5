@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { User, Globe, KeyRound, Save, Edit2, ChevronDown, Ticket } from 'lucide-react'
+import { User, Globe, KeyRound, Save, Edit2, ChevronDown, Ticket, Store } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { cambiarPassword, activarWeb, desactivarWeb, updateNombreProfile, updateNombreLocal } from '../services/authService'
+import { cambiarPassword, activarWeb, desactivarWeb, updateNombreProfile, updateNombreLocal, LOCAL_ID } from '../services/authService'
+import { getLocalConfig } from '../services/api'
 import TarjetaWeb from './TarjetaWeb'
+import LogoLocalUploader from './LogoLocalUploader'
 import styles from './ProfileView.module.css'
 
-export default function ProfileView({ onNavigate }) {
+export default function ProfileView({ onNavigate, secInicial }) {
   const { session, profile, refreshProfile } = useAuth()
   const [webActiva, setWebActiva] = useState(profile?.locales?.web_activa || false)
   const [operando, setOperando] = useState(false)
@@ -18,8 +20,11 @@ export default function ProfileView({ onNavigate }) {
   const [nombreLocal, setNombreLocal] = useState(profile?.locales?.nombre || '')
   const [msgIdentidad, setMsgIdentidad] = useState(null)
 
-  // 🪗 acordeón: una sección abierta a la vez
-  const [abierta, setAbierta] = useState('perfil')
+  // logo del local (para el badge SIN LOGO)
+  const [logoUrl, setLogoUrl] = useState(null)
+
+  // 🪗 acordeón: arranca donde le digan (identidad si vienen del avatar/nudge)
+  const [abierta, setAbierta] = useState(secInicial || 'perfil')
   const toggleSec = (k) => setAbierta(a => (a === k ? null : k))
 
   useEffect(() => {
@@ -27,6 +32,10 @@ export default function ProfileView({ onNavigate }) {
     setNombreLocal(profile?.locales?.nombre || '')
     setWebActiva(profile?.locales?.web_activa || false)
   }, [profile])
+
+  useEffect(() => {
+    if (LOCAL_ID) getLocalConfig(LOCAL_ID).then(c => setLogoUrl(c?.config?.logo_url || null)).catch(() => {})
+  }, [])
 
   const cambiarPass = async (e) => {
     e.preventDefault()
@@ -127,6 +136,26 @@ export default function ProfileView({ onNavigate }) {
                 </div>
               </form>
             )}
+          </div>
+        )}
+      </section>
+
+      {/* ============ SECCIÓN IDENTIDAD DEL COMERCIO ============ */}
+      <section className={styles.card}>
+        <button className={styles.accHeader} onClick={() => toggleSec('identidad')}>
+          <span className={styles.cardTitle}><Store className="text-blue-600" size={20} /> Identidad de tu comercio</span>
+          <span className={styles.accRight}>
+            {!logoUrl && <span className={`${styles.badge} ${styles.badgeOff}`}>SIN LOGO</span>}
+            <ChevronDown size={18} className={`${styles.accChevron} ${abierta === 'identidad' ? styles.accChevronOpen : ''}`} />
+          </span>
+        </button>
+
+        {abierta === 'identidad' && (
+          <div className={styles.accBody}>
+            <LogoLocalUploader onSaved={(url) => setLogoUrl(url)} />
+            <p className={styles.webText}>
+              Este logo se ve en el inicio de la app y en tu tienda online. Si no subís ninguno, se muestra la inicial de tu comercio.
+            </p>
           </div>
         )}
       </section>

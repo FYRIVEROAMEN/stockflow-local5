@@ -20,6 +20,9 @@ import ProfileView from './ProfileView'
 import ConfigTicketView from './ConfigTicketView'
 import LocalAvatar from './LocalAvatar'
 import BannerPlan from './BannerPlan'
+import NudgeLogo from './NudgeLogo'
+import NudgeWeb from './NudgeWeb'
+import NotifBell from './NotifBell'
 
 import styles from './Dashboard.module.css'
 
@@ -297,7 +300,7 @@ function Dashboard({ onLogout }) {
   return (
     <div className={`min-h-screen pb-32 md:pb-8 ${styles.root}`}>
       {/* ============ HEADER ============ */}
-            <header className={`${styles.header} ${scrolled ? styles.headerScrolled : styles.headerNormal}`}>
+                  <header className={`${styles.header} ${scrolled ? styles.headerScrolled : styles.headerNormal}`}>
         <div className={styles.headerInner}>
           <h1 className={styles.logo}>
             <div className={`${styles.logoIcon} ${scrolled ? styles.logoIconSmall : styles.logoIconBig}`}>
@@ -305,11 +308,15 @@ function Dashboard({ onLogout }) {
             </div>
             <span className={styles.logoText}>Stock<span className={styles.logoAccent}>Shop</span></span>
           </h1>
-          {/* ============ AVATAR DEL LOCAL (white-label) ============ */}
-          <LocalAvatar size={36} onClick={() => irA('profile')} />
-          <button onClick={onLogout} className={`btn btn-secondary touch-target ${styles.soloDesktop}`}>
-            <LogOut className="w-5 h-5" /> Salir
-          </button>
+
+          {/* ============ GRUPO DERECHO: campana + avatar + salir ============ */}
+          <div className={styles.headerRight}>
+            <NotifBell />
+            <LocalAvatar size={36} onClick={() => irA('identidad')} />
+            <button onClick={onLogout} className={`btn btn-secondary touch-target ${styles.soloDesktop}`}>
+              <LogOut className="w-5 h-5" /> Salir
+            </button>
+          </div>
         </div>
       </header>
 
@@ -362,6 +369,7 @@ function Dashboard({ onLogout }) {
               <p className={styles.greetingLocal}>{profile?.locales?.nombre || 'Tu comercio'}</p>
 
               <div className={styles.heroCard}>
+                
                 <LocalAvatar size={48} onClick={() => irA('profile')} />
                 <div>
                   <p className={styles.heroName}>{profile?.locales?.nombre || 'Tu comercio'}</p>
@@ -419,7 +427,11 @@ function Dashboard({ onLogout }) {
       </button>
 
       {/* ============ PLANES / PRUEBA GRATIS ============ */}
-      <BannerPlan />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+  <NudgeWeb webActiva={profile?.locales?.web_activa} onNavigate={(v) => irA(v)} />
+  <NudgeLogo onNavigate={(v) => irA(v)} />
+  <BannerPlan />
+</div>
             </div>
 
             {/* ----- DESKTOP ----- */}
@@ -701,7 +713,7 @@ function Dashboard({ onLogout }) {
           </>
         ) : null}
 
-              {/* ============ OTRAS VISTAS ============ */}
+                      {/* ============ OTRAS VISTAS ============ */}
         {currentView === 'sales' ? (
           <SalesForm onSaleRecorded={fetchProductos} productos={productos} cart={cart} setCart={setCart} />
         ) : currentView === 'history' ? (
@@ -715,7 +727,11 @@ function Dashboard({ onLogout }) {
         ) : currentView === 'pedidos' ? (
           <PedidosWebView onCambios={fetchPedidosCount} />
         ) : currentView === 'profile' ? (
-           <ProfileView onNavigate={(v) => irA(v)} />
+          <ProfileView onNavigate={(v) => irA(v)} />
+        ) : currentView === 'identidad' ? (
+          <ProfileView onNavigate={(v) => irA(v)} secInicial="identidad" />
+        ) : currentView === 'activarweb' ? (
+  <ProfileView onNavigate={(v) => irA(v)} secInicial="web" />
         ) : currentView === 'configticket' ? (
           <ConfigTicketView onBack={() => irA('profile')} />
         ) : currentView === 'importar' ? (
