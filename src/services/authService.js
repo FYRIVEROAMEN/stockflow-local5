@@ -15,6 +15,31 @@ export const login = async (email, password) => {
   return data
 }
 
+// 👇 NUEVO: Registro con email + password
+export const signup = async (email, password) => {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      redirectTo: window.location.origin
+    }
+  })
+  if (error) throw error
+  return data
+}
+
+// 👇 NUEVO: Login con Google OAuth
+export const loginConGoogle = async () => {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin
+    }
+  })
+  if (error) throw error
+  return data
+}
+
 // Logout
 export const logout = async () => {
   const { error } = await supabase.auth.signOut()
@@ -43,7 +68,7 @@ export const getProfile = async (userId) => {
   return data
 }
 
-// ✅ NUEVO: Actualizar nombre del dueño (profiles)
+// Actualizar nombre del dueño (profiles)
 export const updateNombreProfile = async (userId, nombre) => {
   const { data, error } = await supabase
     .from('profiles')
@@ -55,7 +80,7 @@ export const updateNombreProfile = async (userId, nombre) => {
   return data
 }
 
-// ✅ NUEVO: Actualizar nombre del local (locales)
+// Actualizar nombre del local (locales)
 export const updateNombreLocal = async (localId, nombre) => {
   const { data, error } = await supabase
     .from('locales')

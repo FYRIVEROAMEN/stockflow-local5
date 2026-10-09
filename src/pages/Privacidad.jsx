@@ -1,61 +1,48 @@
 import LegalLayout from '../components/LegalLayout'
 
 const SECCIONES = [
-  { titulo: '1. Responsable y alcance', arts: [
-    'StockShop (en adelante, "la Plataforma") es responsable del tratamiento de los datos personales que recoja a través de sus sitios y aplicaciones, conforme la Ley Nacional de Protección de Datos Personales N° 25.326, su Decreto Reglamentario 1558/01 y normativa complementaria vigente en la República Argentina.',
-    'Esta Política describe qué datos recogemos, con qué finalidad, cómo los almacenamos y qué derechos tenés como titular.'
+  { titulo: 'Datos Personales Recopilados', arts: [
+    'Para el funcionamiento y acceso a la plataforma mediante autenticación externa segura (Google OAuth), StockShop recopila únicamente los datos mínimos indispensables provistos por el perfil del usuario:',
+    'Datos de identificación: Nombre completo y dirección de correo electrónico (cuenta de Gmail).',
+    'Datos de navegación y técnicos: Dirección IP, tipo de navegador y registros de sesión necesarios para garantizar la seguridad operativa y el acceso correcto al sistema de inventarios.',
+    'Nota: StockShop no almacena contraseñas de cuentas de Google ni datos bancarios, ya que las transacciones y pagos se realizan mediante pasarelas externas configuradas de forma descentralizada por cada comercio.'
   ]},
-  { titulo: '2. Datos que recopilamos', arts: [
-    'Datos de cuenta: nombre, dirección de correo electrónico y, si te registrás con Google, el perfil básico que Google nos comparte (nombre, email y foto de perfil).',
-    'Datos del comercio: nombre del local, teléfono de contacto, dirección, redes sociales, catálogo de productos, precios, imágenes y registros de ventas que el propio usuario carga.',
-    'Datos de uso: información técnica mínima necesaria para operar el servicio (sesión, dispositivo, registros de error).'
+  { titulo: 'Finalidad del Tratamiento de los Datos', arts: [
+    'La información recopilada se utiliza exclusiva y limitadamente para los siguientes fines operativos:',
+    'Permitir el acceso autenticado y seguro del comerciante a su panel de control e inventario.',
+    'Identificar al propietario de la cuenta comercial dentro de la plataforma y gestionar los roles de entretiendas.',
+    'Enviar notificaciones críticas relativas al servicio, seguridad o actualizaciones del sistema.',
+    'Cumplir con obligaciones legales, requerimientos judiciales o normativas vigentes en la República Argentina.'
   ]},
-  { titulo: '3. Finalidad del tratamiento', arts: [
-    'Prestar el servicio de gestión de stock, ventas y publicación de la tienda online del comercio.',
-    'Autenticar al usuario y proteger la seguridad de las cuentas.',
-    'Enviar comunicaciones operativas del servicio (novedades, mantenimientos, avisos de la plataforma).',
-    'Elaborar estadísticas agregadas y anónimas de uso para mejorar el producto.'
+  { titulo: 'Uso de Datos Agregados y Anonimizados con Fines Estadísticos', arts: [
+    'El Usuario acepta y autoriza expresamente a StockShop a utilizar la información relativa a volúmenes y rotación de inventarios de forma estrictamente anonimizada y agregada (despojada de cualquier dato personal, nombre, CUIT o identificación comercial). Esta información podrá ser procesada para elaborar informes de tendencias del mercado, análisis sectoriales y estadísticas comerciales destinadas a optimizar la cadena de valor y el ecosistema de la plataforma.'
   ]},
-  { titulo: '4. Base legal y consentimiento', arts: [
-    'El tratamiento se funda en el consentimiento expreso del titular al registrarse y aceptar los Términos y Condiciones, y en la relación contractual de prestación del servicio.'
+  { titulo: 'Confidencialidad y No Comercialización', arts: [
+    'StockShop no vende, alquila, cede ni comercializa bajo ningún concepto los datos personales o la información de inventarios de los usuarios a terceros. Los datos almacenados son de uso estrictamente confidencial y se gestionan bajo estándares de seguridad informática en servidores en la nube.'
   ]},
-  { titulo: '5. Proveedores y encargados de tratamiento', arts: [
-    'Los datos se alojan y procesan mediante proveedores de infraestructura en la nube (Supabase para base de datos y autenticación, Cloudinary para almacenamiento de imágenes, Cloudflare para distribución y seguridad), quienes actúan como encargados de tratamiento bajo estándares de confidencialidad y seguridad.',
-    'Cuando el usuario se autentica con Google, Google actúa como proveedor de identidad independiente con su propia política de privacidad.'
+  { titulo: 'Uso de Cookies y Tecnologías de Sesión', arts: [
+    'La Aplicación utiliza cookies técnicas y tokens de sesión estrictamente necesarios para mantener la sesión activa del usuario autenticado y recordar sus preferencias dentro del sistema de inventarios, sin realizar seguimiento publicitario invasivo ni perfiles de rastreo externo.'
   ]},
-  { titulo: '6. Cesión de datos', arts: [
-    'StockShop NO vende ni cede datos personales a terceros con fines comerciales.',
-    'Los datos de contacto que un comercio publica en su tienda online (nombre, WhatsApp, redes) se muestran al público porque el propio comercio decide publicarlos como vidriera comercial.'
+  { titulo: 'Integración con Servicios de Terceros', arts: [
+    'La plataforma utiliza infraestructura en la nube y proveedores tecnológicos seguros (tales como Supabase y Google Cloud) para la autenticación y el almacenamiento de datos. El tratamiento de los datos realizado por dichos proveedores externos se rige por sus propias políticas de privacidad y seguridad.'
   ]},
-  { titulo: '7. Cookies y almacenamiento local', arts: [
-    'La Plataforma utiliza almacenamiento local del navegador (localStorage) para mantener la sesión y preferencias del usuario, y cookies técnicas necesarias para el funcionamiento. No utilizamos cookies publicitarias de terceros sin consentimiento adicional.'
+  { titulo: 'Derechos de los Usuarios (Derechos ARCO)', arts: [
+    'El titular de los datos personales cuenta con el derecho irrevocable de solicitar en cualquier momento el acceso, actualización, rectificación o la eliminación total de su cuenta y sus registros asociados de nuestra base de datos.',
+    'En Argentina: El titular de los datos tiene la facultad de ejercer el derecho de acceso a los mismos en forma gratuita a intervalos no inferiores a seis meses. La Dirección Nacional de Protección de Datos Personales, Órgano de Control de la Ley Nº 25.326, tiene la atribución de atender las denuncias y reclamos que se interpongan con relación al incumplimiento de las normas sobre protección de datos personales.'
   ]},
-  { titulo: '8. Conservación de los datos', arts: [
-    'Los datos se conservan mientras la cuenta esté activa. Las cuentas con inactividad total superior a 180 días podrán ser archivadas o eliminadas previa notificación, conforme los Términos y Condiciones.',
-    'Los registros de ventas y comprobantes se conservan por los plazos que la normativa fiscal aplicable imponga al comercio.'
-  ]},
-  { titulo: '9. Derechos del titular (Ley 25.326)', arts: [
-    'El titular puede ejercer los derechos de acceso, rectificación, actualización y supresión de sus datos personales enviando una solicitud al correo de contacto indicado al final de esta política, sin costo.',
-    'El derecho de acceso puede ejercerse en los términos del art. 14 inc. 3 de la Ley 25.326.'
-  ]},
-  { titulo: '10. Seguridad', arts: [
-    'Aplicamos medidas técnicas y organizativas razonables: autenticación gestionada, políticas de seguridad a nivel de fila (RLS) en la base de datos, cifrado en tránsito y control de acceso por rol y por comercio.',
-    'Ningún sistema es absolutamente seguro: ante un incidente de seguridad que comprometa datos personales, notificaremos a los titulares afectados y a la autoridad de aplicación.'
-  ]},
-  { titulo: '11. Menores de edad', arts: [
-    'El servicio está dirigido a mayores de 18 años con capacidad legal para contratar. No recopilamos deliberadamente datos de menores.'
-  ]},
-  { titulo: '12. Cambios en esta política', arts: [
-    'Podemos actualizar esta Política. Los cambios sustanciales se anunciarán mediante avisos dentro de la plataforma. El uso continuado implica aceptación.'
-  ]},
-  { titulo: '13. Contacto', arts: [
-    'Consultas y ejercicio de derechos: soporte@stockshop.com.ar (reemplazar por el correo real de contacto).'
-  ]},
-  { titulo: 'Aviso legal obligatorio', arts: [
-    'LA DIRECCIÓN NACIONAL DE PROTECCIÓN DE DATOS PERSONALES, órgano de control de la Ley N° 25.326, tiene la atribución de atender las denuncias y reclamos que se interpongan con relación al incumplimiento de las normas sobre protección de datos personales.'
+  { titulo: 'Modificaciones a la Política de Privacidad', arts: [
+    'Los desarrolladores se reservan el derecho absoluto de actualizar la presente Política de Privacidad en cualquier momento para adaptarla a cambios normativos o tecnológicos. Cualquier modificación sustancial será informada dentro de la plataforma.'
   ]}
 ]
 
 export default function Privacidad() {
-  return <LegalLayout titulo="Política de Privacidad" actualizado="Octubre 2026" secciones={SECCIONES} />
+  return (
+    <LegalLayout
+      titulo="Política de Privacidad de StockShop"
+      actualizado="8 de octubre de 2026"
+      intro={'La presente Política de Privacidad describe cómo StockShop ("la Aplicación" o "nosotros") recopila, utiliza, almacena y protege los datos personales de los usuarios y comerciantes ("el Usuario") que utilizan nuestra plataforma digital de gestión de inventarios y directorio comercial B2B en el sitio web www.stockshop.com.ar. Al registrarse, acceder o utilizar nuestros servicios, el Usuario acepta las prácticas descritas en esta política, la cual se rige bajo la Ley Nacional de Protección de Datos Personales N° 25.326 de la República Argentina.'}
+      secciones={SECCIONES}
+    />
+  )
 }
+   

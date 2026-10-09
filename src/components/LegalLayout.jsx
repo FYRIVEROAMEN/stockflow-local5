@@ -1,6 +1,6 @@
 import logoMate from '../assets/LogoStockShopUsable.png'
 
-export default function LegalLayout({ titulo, actualizado, secciones }) {
+export default function LegalLayout({ titulo, actualizado, intro, secciones }) {
   return (
     <div className="min-h-screen bg-white text-slate-800 font-sans">
       <nav className="max-w-3xl mx-auto px-4 sm:px-8 py-4 flex items-center justify-between">
@@ -13,14 +13,18 @@ export default function LegalLayout({ titulo, actualizado, secciones }) {
 
       <main className="max-w-3xl mx-auto px-4 sm:px-8 pb-16">
         <h1 className="text-2xl sm:text-4xl font-black text-[#08285B] mt-6">{titulo}</h1>
-        <p className="text-xs text-slate-400 mt-2 mb-8">Última actualización: {actualizado}</p>
+        <p className="text-xs text-slate-400 mt-2 mb-8">Fecha de última actualización: {actualizado}</p>
+
+        {intro && (
+          <p className="text-sm leading-7 text-slate-600 mb-8">{intro}</p>
+        )}
 
         {secciones.map((sec, i) => (
           <section key={i} className="mb-8">
             <h2 className="text-sm sm:text-base font-black text-[#08285B] uppercase tracking-wide border-b border-slate-100 pb-2 mb-4">
-              {sec.titulo}
+              {i + 1}. {sec.titulo}
             </h2>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {sec.arts.map((art, j) => (
                 <p key={j} className="text-xs sm:text-sm leading-6 text-slate-600">{art}</p>
               ))}

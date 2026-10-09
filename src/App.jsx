@@ -1,13 +1,13 @@
 import Login from './components/Login'
+import CrearCuenta from './components/CrearCuenta'  // 👈 NUEVO
 import Dashboard from './components/Dashboard'
 import CrearLocal from './components/CrearLocal'
 import Landing from './components/Landing'
-import Terminos from './pages/Terminos'          // 👈 NUEVO
-import Privacidad from './pages/Privacidad'       // 👈 NUEVO
+import Terminos from './pages/Terminos'
+import Privacidad from './pages/Privacidad'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { logout as authLogout } from './services/authService'
 
-// 🌐 Portal: ¿mostrar la landing de marketing?
 function esRaizMarketing() {
   if (typeof window === 'undefined') return false
   const host = window.location.hostname
@@ -22,7 +22,6 @@ function esRaizMarketing() {
   return esApex && esRaiz && sinSalir
 }
 
-// 📜 Rutas públicas legales (no requieren sesión)
 function esRutaLegal() {
   if (typeof window === 'undefined') return null
   const path = window.location.pathname
@@ -51,32 +50,28 @@ function AppInner() {
     }
   }
 
-  // ─────────────────────────────────────────────
-  // 📜 RUTAS PÚBLICAS LEGALES (primero: no requieren sesión)
-  // ─────────────────────────────────────────────
+  // Rutas públicas legales
   const rutaLegal = esRutaLegal()
   if (rutaLegal === 'terminos')   return <Terminos />
   if (rutaLegal === 'privacidad') return <Privacidad />
 
-  // ─────────────────────────────────────────────
-  // 🔓 SIN SESIÓN: decidimos por host + path
-  // ─────────────────────────────────────────────
+  // Sin sesión
   if (!session) {
     if (esRaizMarketing()) return <Landing />
-    // /login, /crear-cuenta o cualquier ruta privada
+    
+    // 👇 DISTINGUIR /login de /crear-cuenta
+    const path = window.location.pathname
+    if (path === '/crear-cuenta') return <CrearCuenta />
+    
+    // Cualquier otra ruta (incluyendo /login) → Login
     return <Login />
   }
 
-  // ─────────────────────────────────────────────
-  // 🔐 CON SESIÓN
-  // ─────────────────────────────────────────────
-
-  // 🏢 G2: sesión SIN local (profile inexistente o sin local_id)
+  // Con sesión
   if (!profile?.local_id) {
     return <CrearLocal />
   }
 
-  // 🔒 Sesión CON local pero sin sombrero de dueño
   if (profile.rol !== 'owner') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -94,7 +89,6 @@ function AppInner() {
     )
   }
 
-  // 🏭 Dueño con local: la fábrica
   return <Dashboard onLogout={handleLogout} />
 }
 

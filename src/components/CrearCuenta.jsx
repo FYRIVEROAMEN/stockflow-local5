@@ -1,15 +1,13 @@
 import { useState } from 'react'
 import { AlertTriangle, Eye, EyeOff, CheckCircle, Mail, Lock, ArrowRight } from 'lucide-react'
-import { login } from '../services/authService'
-import { useAuth } from '../context/AuthContext'
+import { signup, loginConGoogle } from '../services/authService'
 import logoMate from '../assets/LogoStockShopUsable.png'
 import styles from './Login.module.css'
 
-
-function Login() {
-  const { loginConGoogle } = useAuth()
+function CrearCuenta() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPass, setConfirmPass] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -17,12 +15,22 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    
+    if (password.length < 6) {
+      return setError('La contraseña debe tener al menos 6 caracteres')
+    }
+    if (password !== confirmPass) {
+      return setError('Las contraseñas no coinciden')
+    }
+
     setLoading(true)
     try {
-      await login(email, password)
+      await signup(email, password)
+      // Supabase hace auto-login después del signup
+      // App.jsx detecta !profile?.local_id y muestra CrearLocal
     } catch (err) {
-      setError(err.message === 'Invalid login credentials'
-        ? 'Email o contraseña incorrectos'
+      setError(err.message === 'User already registered'
+        ? 'Este email ya está registrado. Intentá iniciar sesión.'
         : err.message)
     } finally {
       setLoading(false)
@@ -33,6 +41,7 @@ function Login() {
     setError('')
     try {
       await loginConGoogle()
+      // Google redirect, Supabase maneja el callback
     } catch (err) {
       setError(err.message)
     }
@@ -40,8 +49,6 @@ function Login() {
 
   return (
     <div className={styles.page}>
-      
-      {/* ============ PANEL IZQUIERDO: SE OCULTA EN CELULARES ============ */}
       <div className={styles.heroPanel}>
         <div className={styles.heroTop}>
           <img src={logoMate} alt="StockShop Logo" className={styles.heroLogoSmall} />
@@ -49,9 +56,9 @@ function Login() {
         </div>
 
         <div className={styles.heroMain}>
-          <h2 className={styles.heroTitle}>Bienvenido de nuevo</h2>
+          <h2 className={styles.heroTitle}>Empezá gratis</h2>
           <p className={styles.heroSubtitle}>
-            Ingresá para gestionar tu stock, tus ventas y tu tienda online sin volverte loco.
+            15 días para probar todo. Sin tarjeta de crédito. Sin compromisos.
           </p>
 
           <ul className={styles.heroBullets}>
@@ -78,21 +85,15 @@ function Login() {
         </div>
       </div>
 
-      {/* ============ PANEL DERECHO: FORMULARIO TIPO TARJETA ============ */}
       <div className={styles.formPanel}>
         <div className={styles.formCard}>
-          
           <div className={styles.formHeader}>
-            <a href="https://www.stockshop.com.ar" className={styles.backLink}>
-              ← Volver al inicio
-            </a>
-            
+            <a href="/" className={styles.backLink}>← Volver al inicio</a>
             <div className={styles.logoCenterWrap}>
-               <img src={logoMate} alt="StockShop" className={styles.logoCenter} />
+              <img src={logoMate} alt="StockShop" className={styles.logoCenter} />
             </div>
-
-            <h1 className={styles.title}>Iniciar sesión</h1>
-            <p className={styles.tagline}>Ingresá tus credenciales para continuar</p>
+            <h1 className={styles.title}>Crear cuenta</h1>
+            <p className={styles.tagline}>Empezá tu prueba gratuita de 15 días</p>
           </div>
 
           <form onSubmit={handleSubmit} className={styles.form}>
@@ -121,9 +122,9 @@ function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className={`${styles.input} ${styles.inputWithIcon} ${error ? styles.inputWithError : ''}`}
-                  placeholder="••••••••"
+                  placeholder="Mínimo 6 caracteres"
                   required
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
@@ -136,6 +137,22 @@ function Login() {
               </div>
             </div>
 
+            <div className={styles.field}>
+              <label className={styles.label}>Confirmar contraseña</label>
+              <div className={styles.inputWrap}>
+                <Lock className={styles.iconLeft} size={18} />
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  value={confirmPass}
+                  onChange={(e) => setConfirmPass(e.target.value)}
+                  className={`${styles.input} ${styles.inputWithIcon} ${error ? styles.inputWithError : ''}`}
+                  placeholder="Repetí la contraseña"
+                  required
+                  autoComplete="new-password"
+                />
+              </div>
+            </div>
+
             {error && (
               <div className={styles.error} role="alert">
                 <AlertTriangle size={16} style={{ flexShrink: 0 }} />
@@ -143,12 +160,8 @@ function Login() {
               </div>
             )}
 
-            <div className={styles.forgotPassWrap}>
-              <a href="#" className={styles.forgotLink}>¿Olvidaste tu contraseña?</a>
-            </div>
-
             <button type="submit" disabled={loading} className={styles.submit}>
-              {loading ? 'Ingresando...' : 'Ingresar a mi cuenta'}
+              {loading ? 'Creando cuenta...' : 'Crear mi tienda gratis'}
               {!loading && <ArrowRight size={18} />}
             </button>
           </form>
@@ -162,18 +175,24 @@ function Login() {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
-            Acceder con Google
+            Continuar con Google
           </button>
 
           <p className={styles.footer}>
-            ¿No tenés cuenta?{' '}
-            <a href="/crear-cuenta" className={styles.footerLink}>Crear mi tienda gratis</a>
+            ¿Ya tenés cuenta?{' '}
+            <a href="/login" className={styles.footerLink}>Iniciar sesión</a>
           </p>
 
+          <p className={styles.legal} style={{ fontSize: '10px', color: '#9ca3af', textAlign: 'center', marginTop: '12px' }}>
+            Al crear tu cuenta, aceptás nuestros{' '}
+            <a href="/terminos" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }}>Términos</a>
+            {' '}y{' '}
+            <a href="/privacidad" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }}>Política de Privacidad</a>.
+          </p>
         </div>
       </div>
     </div>
   )
 }
 
-export default Login
+export default CrearCuenta
