@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { getClientesConDeuda, getClientes, registrarPagoDeuda, getVentasPendientesCliente, eliminarDeudaCliente, eliminarCliente, updateCliente } from '../services/api'
+import { LOCAL_ID } from '../services/authService'
 import { Search, Trash2, Download, MoreVertical, Phone, Copy, Eye, UserX, ChevronUp, Wallet, MessageCircle, Edit2, Calendar } from 'lucide-react'
 import Swal from 'sweetalert2'
 import styles from './ClientesView.module.css'
+
 
 const getVarianteInfo = (item) => {
   const talle = item.variantes?.talle || item.productos?.talle
@@ -109,7 +111,7 @@ function ClientesView() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const LOCAL_ID = import.meta.env.VITE_LOCAL_ID || 1
+          // FIX: usar LOCAL_ID importado de authService (no env var)
           await registrarPagoDeuda(cliente.id, result.value.monto, LOCAL_ID, result.value.nota)
           Swal.fire({ title: '¡Pago registrado!', text: `Se registró un pago de ${moneyFull(result.value.monto)}`, icon: 'success', timer: 2000 })
           fetchClientes()
