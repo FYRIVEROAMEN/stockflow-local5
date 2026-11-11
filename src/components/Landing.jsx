@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useRef } from 'react'
 import { motion } from 'framer-motion';
 import logoMate from '../assets/LogoStockShopUsable.png'
+import { CASOS, CasoCard, useAutoScroll } from './VidrieraCasos'
 
 // 🐵 ÍCONOS Y COMPONENTES VISUALES
 const Check = () => <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M5 13l4 4L19 7"/></svg>;
@@ -55,8 +56,11 @@ const Plan = ({name,desc,price,featured,children,icon,onSelect}) => (
 
 const Item = ({children}) => <li className="flex items-center gap-2 text-xs text-slate-600"><span className="text-[#3882F6]"><Check/></span>{children}</li>;
 
-export default function Landing() {
+export default function Landing() { 
+  const carruselRef = useRef(null)
+
   // 🎯 HANDLERS DE NAVEGACIÓN
+
   const handleIngresar = () => {
     window.location.href = '/login'
   }
@@ -192,23 +196,29 @@ export default function Landing() {
         </div>
       </motion.section>
 
-      {/* 4. EJEMPLOS DE TIENDA */}
+           {/* 4. EJEMPLOS DE TIENDA (real + rubros, misma carrusel) */}
       <section className="bg-[#F7FAFE] border-y border-slate-100 py-10 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 grid lg:grid-cols-[1fr_2.4fr] gap-8 lg:gap-10 items-center">
           <div className="text-center lg:text-left">
+            <span className="inline-block bg-[#FEF3C7] text-[#B45309] text-[10px] font-black uppercase tracking-[.14em] px-3 py-1 rounded-full mb-2">
+              🔥 Prueba viva
+            </span>
             <h2 className="text-2xl sm:text-3xl font-black text-[#08285B]">Así puede verse tu tienda</h2>
-            <p className="text-xs sm:text-base text-slate-500 mt-2 max-w-sm mx-auto lg:mx-0">Tres ejemplos de cómo podés mostrar tu negocio.</p>
-            <a href="#" className="inline-flex items-center gap-2 mt-4 text-xs sm:text-sm font-bold text-[#3882F6] hover:gap-3 transition-all">Ver más ejemplos <Arrow/></a>
+            <p className="text-xs sm:text-base text-slate-500 mt-2 max-w-sm mx-auto lg:mx-0">
+              La primera es REAL: entrá y navegala. Después, ejemplos por rubro.
+            </p>
           </div>
-          <div className="flex gap-4 sm:gap-5 overflow-x-auto pb-3 px-2 snap-x" style={{scrollbarWidth:'none',msOverflowStyle:'none'}}>
-            <StorePreview kind="fashion" label="Ropa y accesorios"/>
-            <StorePreview kind="mate" label="Kiosco y bebidas"/>
-            <StorePreview kind="tech" label="Electrónica"/>
-          </div>
+         <div ref={carruselRef} className="flex items-start gap-4 sm:gap-5 overflow-x-auto pb-3 px-2 snap-x" style={{scrollbarWidth:'none',msOverflowStyle:'none'}}>
+  {CASOS.map(c => <CasoCard key={c.nombre} c={c} />)}
+  
+  <StorePreview kind="mate" label="Kiosco y bebidas"/>
+  <StorePreview kind="tech" label="Electrónica"/>
+</div>
         </div>
       </section>
 
-      {/* 5. PASOS */}
+
+      {/* 6. PASOS */}
       <section id="como-funciona" className="bg-[#F4F8FD] py-10 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 grid lg:grid-cols-[1fr_2.3fr] gap-8 lg:gap-10 items-center">
           <div className="text-center lg:text-left">
@@ -230,7 +240,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* 6. PLANES */}
+      {/* 7. PLANES */}
       <section id="planes" className="py-12 sm:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <h2 className="text-2xl sm:text-3xl font-black text-[#08285B] mb-8 text-center lg:text-left">
@@ -256,7 +266,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* 7. BANNER AZUL INFERIOR */}
+      {/* 8. BANNER AZUL INFERIOR */}
       <motion.section 
         initial={{ opacity: 0, scale: 0.95 }}
         whileInView={{ opacity: 1, scale: 1 }}
@@ -285,7 +295,7 @@ export default function Landing() {
         </div>
       </motion.section>
 
-      {/* 8. FOOTER */}
+      {/* 9. FOOTER */}
       <footer className="border-t border-slate-100 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
           <div className="flex items-center justify-center sm:justify-start gap-2">
